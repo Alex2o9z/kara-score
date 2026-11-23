@@ -3,27 +3,26 @@
 Last Updated: 2026-11-23
 
 ## 1. Last Completed Task
-- **Task ID:** `T2.2b`
-- **Result:** Authored full test coverage for `ScoringEngine` (Tier 1 Exact Melody, Tier 2 Smart Vocal Score + Anti-Cheat heuristics) and `sample-song.json` chart validation. All 7 test files (59 unit tests) green.
+- **Task ID:** `T2.3b`
+- **Result:** Implemented `youtubeUrlParser.ts` (validating watch URLs, youtu.be, shorts, embeds, and raw IDs) and `YouTubePlayerAdapter.ts` (singleton IFrame API loader, typed PlayerState/Error mapping, and StrictMode-safe destroy). All 9 test files (83 unit tests) green.
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
-- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (7 files, 59 tests), and `build`.
+- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (9 files, 83 tests), and `build`.
 - **Attempted Solutions:** N/A
 
 ## 3. First Action Next Session
-- **Task ID:** `T2.3`
-- **Expected Result:** Implement `YouTubePlayerAdapter` wrapping YouTube IFrame API states, playback controls, and error events in a new session on branch `dev`.
+- **Task ID:** `T2.4`
+- **Expected Result:** Implement Walking Skeleton integrating live mic capture, YouTube playback synchronization, and dev-only Debug HUD (with 4 Smart Vocal metrics) on branch `dev`.
 - **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
-- `src/engines/PitchDetector.test.ts`
-- `src/engines/PitchSmoother.test.ts`
-- `src/engines/ScoringEngine.test.ts`
-- `src/engines/TimelineInterpolator.test.ts`
-- `src/engines/noteUtils.test.ts`
-- `src/engines/sampleSong.test.ts`
+- `src/engines/AudioEngine.ts`
+- `src/engines/AudioEngine.test.ts`
+- `src/services/YouTubePlayerAdapter.ts`
+- `src/services/youtubeUrlParser.ts`
+- `src/services/youtubeUrlParser.test.ts`
 - `TASKS.md`
 
 ---
@@ -42,7 +41,7 @@ Last Updated: 2026-11-23
 - [x] **`T2.2`**: Implement song manifest parser, timeline interpolation, and comprehensive Vitest unit tests (including anti-cheat metrics).
 
 ## Phase 2B — Walking Skeleton
-- [ ] **`T2.3`**: Implement `YouTubePlayerAdapter` wrapping YouTube IFrame API states, playback controls, and error events.
+- [x] **`T2.3`**: Implement `YouTubePlayerAdapter` wrapping YouTube IFrame API states, playback controls, and error events.
 - [ ] **`T2.4`**: Implement Walking Skeleton integrating live mic capture, YouTube playback synchronization, and dev-only Debug HUD (with 4 Smart Vocal metrics).
 - [ ] **`G2`**: Gate 2 — End-to-end walking skeleton validation on desktop hardware with wired headphones.
 
