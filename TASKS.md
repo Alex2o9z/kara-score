@@ -3,28 +3,27 @@
 Last Updated: 2026-11-23
 
 ## 1. Last Completed Task
-- **Task ID:** `T2.1b`
-- **Result:** Implemented dual-mode `ScoringEngine` (Tier 1 Exact Melody + Tier 2 Smart Vocal Score) with all 4 anti-cheat vocal breakdown metrics, authored `public/songs/sample-song.json` benchmark chart, and verified strict Pure TS isolation.
+- **Task ID:** `T2.2b`
+- **Result:** Authored full test coverage for `ScoringEngine` (Tier 1 Exact Melody, Tier 2 Smart Vocal Score + Anti-Cheat heuristics) and `sample-song.json` chart validation. All 7 test files (59 unit tests) green.
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
-- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test`, and `build`.
+- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (7 files, 59 tests), and `build`.
 - **Attempted Solutions:** N/A
 
 ## 3. First Action Next Session
-- **Task ID:** `T2.2`
-- **Expected Result:** Implement song manifest parser, timeline interpolation, and comprehensive Vitest unit tests (including anti-cheat metrics).
-- **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
+- **Task ID:** `T2.3`
+- **Expected Result:** Implement `YouTubePlayerAdapter` wrapping YouTube IFrame API states, playback controls, and error events in a new session on branch `dev`.
+- **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
-- `public/songs/sample-song.json`
-- `src/engines/PitchDetector.ts`
-- `src/engines/PitchSmoother.ts`
-- `src/engines/ScoringEngine.ts`
-- `src/engines/TimelineInterpolator.ts`
-- `src/engines/noteUtils.ts`
-- `src/types/karaoke.ts`
+- `src/engines/PitchDetector.test.ts`
+- `src/engines/PitchSmoother.test.ts`
+- `src/engines/ScoringEngine.test.ts`
+- `src/engines/TimelineInterpolator.test.ts`
+- `src/engines/noteUtils.test.ts`
+- `src/engines/sampleSong.test.ts`
 - `TASKS.md`
 
 ---
@@ -40,7 +39,7 @@ Last Updated: 2026-11-23
 
 ## Phase 2A — Pure Engines
 - [x] **`T2.1`**: Implement pure audio and pitch detection engines (`AudioEngine`, `PitchDetector`, `PitchSmoother`, `noteUtils`, 2-Tier Scoring: Exact Melody + Smart Vocal Score).
-- [ ] **`T2.2`**: Implement song manifest parser, timeline interpolation, and comprehensive Vitest unit tests (including anti-cheat metrics).
+- [x] **`T2.2`**: Implement song manifest parser, timeline interpolation, and comprehensive Vitest unit tests (including anti-cheat metrics).
 
 ## Phase 2B — Walking Skeleton
 - [ ] **`T2.3`**: Implement `YouTubePlayerAdapter` wrapping YouTube IFrame API states, playback controls, and error events.
