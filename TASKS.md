@@ -3,26 +3,25 @@
 Last Updated: 2026-11-23
 
 ## 1. Last Completed Task
-- **Task ID:** `T2.3b`
-- **Result:** Implemented `youtubeUrlParser.ts` (validating watch URLs, youtu.be, shorts, embeds, and raw IDs) and `YouTubePlayerAdapter.ts` (singleton IFrame API loader, typed PlayerState/Error mapping, and StrictMode-safe destroy). All 9 test files (83 unit tests) green.
+- **Task ID:** `T2.4b`
+- **Result:** Completed Walking Skeleton integration in `src/App.tsx` wired to `useKaraokeSession` and `DebugHUD`. Fixed YouTube player container black screen / UNSTARTED state by implementing child mount container isolation, pending video queue, explicit 100% dimensions, and `enablejsapi: 1` parameter.
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
 - **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (9 files, 83 tests), and `build`.
-- **Attempted Solutions:** N/A
+- **Attempted Solutions:** Isolated YouTube player DOM replacement into dedicated child mount node, added pending video queue in `YouTubePlayerAdapter`, and enabled JS API postMessage bridge.
 
 ## 3. First Action Next Session
-- **Task ID:** `T2.4`
-- **Expected Result:** Implement Walking Skeleton integrating live mic capture, YouTube playback synchronization, and dev-only Debug HUD (with 4 Smart Vocal metrics) on branch `dev`.
+- **Task ID:** `G2`
+- **Expected Result:** Execute Gate 2 manual real-device validation on desktop hardware with wired headphones on `http://localhost:5173` across all 5 acceptance criteria (mic capture, YouTube sync, 4 Smart Vocal metrics, Tier 1 sample song, embed error recovery).
 - **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
-- `src/engines/AudioEngine.ts`
-- `src/engines/AudioEngine.test.ts`
+- `src/App.tsx`
+- `src/components/DebugHUD.tsx`
+- `src/hooks/useKaraokeSession.ts`
 - `src/services/YouTubePlayerAdapter.ts`
-- `src/services/youtubeUrlParser.ts`
-- `src/services/youtubeUrlParser.test.ts`
 - `TASKS.md`
 
 ---
@@ -42,7 +41,7 @@ Last Updated: 2026-11-23
 
 ## Phase 2B — Walking Skeleton
 - [x] **`T2.3`**: Implement `YouTubePlayerAdapter` wrapping YouTube IFrame API states, playback controls, and error events.
-- [ ] **`T2.4`**: Implement Walking Skeleton integrating live mic capture, YouTube playback synchronization, and dev-only Debug HUD (with 4 Smart Vocal metrics).
+- [x] **`T2.4`**: Implement Walking Skeleton integrating live mic capture, YouTube playback synchronization, and dev-only Debug HUD (with 4 Smart Vocal metrics).
 - [ ] **`G2`**: Gate 2 — End-to-end walking skeleton validation on desktop hardware with wired headphones.
 
 ## Phase 3 — Iterative Build

@@ -168,7 +168,9 @@ export interface YouTubePlayerAdapterOptions {
 
 export class YouTubePlayerAdapter {
   private player: YTPlayerInstance | null = null;
+  private containerEl: HTMLElement | null = null;
   private isReady = false;
+  private pendingVideoId: string | null = null;
   private currentState: PlayerState = 'UNSTARTED';
   private onStateChange?: (state: PlayerState) => void;
   private onError?: (error: YouTubePlayerError) => void;
@@ -182,6 +184,9 @@ export class YouTubePlayerAdapter {
     this.onStateChange = options.onStateChange;
     this.onError = options.onError;
     this.onReadyCallback = options.onReady;
+    if (options.videoId) {
+      this.pendingVideoId = options.videoId;
+    }
 
     void this.initializePlayer(target, options.videoId);
   }
@@ -194,23 +199,41 @@ export class YouTubePlayerAdapter {
         return;
       }
 
-      const origin =
-        typeof window !== 'undefined' && window.location
-          ? window.location.origin
-          : '';
+      let mountTarget: HTMLElement | string = target;
+      if (typeof target !== 'string') {
+        this.containerEl = target;
+        target.innerHTML = '';
+        const mountNode = document.createElement('div');
+        mountNode.style.width = '100%';
+        mountNode.style.height = '100%';
+        target.appendChild(mountNode);
+        mountTarget = mountNode;
+      }
 
-      this.player = new window.YT.Player(target, {
-        videoId,
+      const origin =
+        typeof window !== 'undefined' && window.location && window.location.origin
+          ? window.location.origin
+          : undefined;
+
+      const playerOptions: YTPlayerOptions = {
+        width: '100%',
+        height: '100%',
         playerVars: {
+          enablejsapi: 1,
           playsinline: 1,
           rel: 0,
           modestbranding: 1,
-          origin,
+          ...(origin ? { origin } : {}),
         },
         events: {
           onReady: () => {
             if (this.isDestroyed) return;
             this.isReady = true;
+            if (this.pendingVideoId && this.player && typeof this.player.loadVideoById === 'function') {
+              const pending = this.pendingVideoId;
+              this.pendingVideoId = null;
+              this.player.loadVideoById(pending);
+            }
             this.onReadyCallback?.();
           },
           onStateChange: (event: { data: number }) => {
@@ -224,7 +247,13 @@ export class YouTubePlayerAdapter {
             this.onError?.(mapped);
           },
         },
-      });
+      };
+
+      if (videoId) {
+        playerOptions.videoId = videoId;
+      }
+
+      this.player = new window.YT.Player(mountTarget, playerOptions);
     } catch (err) {
       if (!this.isDestroyed) {
         this.onError?.({
@@ -237,26 +266,58 @@ export class YouTubePlayerAdapter {
   }
 
   public loadVideoById(videoId: string): void {
+    if (!videoId) return;
+    this.pendingVideoId = videoId;
     if (this.player && this.isReady && typeof this.player.loadVideoById === 'function') {
-      this.player.loadVideoById(videoId);
+      try {
+        this.player.loadVideoById(videoId);
+        this.pendingVideoId = null;
+      } catch {
+        // Retry on ready if player threw
+      }
+    }
+  }
+
+  public cueVideoById(videoId: string): void {
+    if (!videoId) return;
+    this.pendingVideoId = videoId;
+    if (this.player && this.isReady && typeof this.player.cueVideoById === 'function') {
+      try {
+        this.player.cueVideoById(videoId);
+        this.pendingVideoId = null;
+      } catch {
+        // Retry on ready
+      }
     }
   }
 
   public play(): void {
     if (this.player && this.isReady && typeof this.player.playVideo === 'function') {
-      this.player.playVideo();
+      try {
+        this.player.playVideo();
+      } catch {
+        // Safe play
+      }
     }
   }
 
   public pause(): void {
     if (this.player && this.isReady && typeof this.player.pauseVideo === 'function') {
-      this.player.pauseVideo();
+      try {
+        this.player.pauseVideo();
+      } catch {
+        // Safe pause
+      }
     }
   }
 
   public seekTo(seconds: number): void {
     if (this.player && this.isReady && typeof this.player.seekTo === 'function') {
-      this.player.seekTo(Math.max(0, seconds), true);
+      try {
+        this.player.seekTo(Math.max(0, seconds), true);
+      } catch {
+        // Safe seek
+      }
     }
   }
 
@@ -295,6 +356,7 @@ export class YouTubePlayerAdapter {
   public destroy(): void {
     this.isDestroyed = true;
     this.isReady = false;
+    this.pendingVideoId = null;
     this.onStateChange = undefined;
     this.onError = undefined;
     this.onReadyCallback = undefined;
@@ -306,6 +368,15 @@ export class YouTubePlayerAdapter {
         // Safe destroy
       }
       this.player = null;
+    }
+
+    if (this.containerEl) {
+      try {
+        this.containerEl.innerHTML = '';
+      } catch {
+        // Safe container cleanup
+      }
+      this.containerEl = null;
     }
   }
 }
