@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "songId": "sample-song",
+  "title": "KaraScore Test Melody",
+  "artist": "KaraScore Ensemble",
+  "youtubeVideoId": "dQw4w9WgXcQ",
+  "offsetMs": 0,
+  "notes": [
+    { "startMs": 1000, "endMs": 2000, "midiNote": 60 },
+    { "startMs": 2200, "endMs": 3200, "midiNote": 62 },
+    { "startMs": 3400, "endMs": 4400, "midiNote": 64 },
+    { "startMs": 4600, "endMs": 5800, "midiNote": 67 },
+    { "startMs": 7500, "endMs": 8500, "midiNote": 67 },
+    { "startMs": 8700, "endMs": 9700, "midiNote": 69 },
+    { "startMs": 9900, "endMs": 10900, "midiNote": 67 },
+    { "startMs": 11100, "endMs": 12500, "midiNote": 64 },
+    { "startMs": 14500, "endMs": 15500, "midiNote": 64 },
+    { "startMs": 15700, "endMs": 16700, "midiNote": 62 },
+    { "startMs": 16900, "endMs": 17900, "midiNote": 60 },
+    { "startMs": 18100, "endMs": 19500, "midiNote": 62 },
+    { "startMs": 21000, "endMs": 22200, "midiNote": 64 },
+    { "startMs": 22400, "endMs": 23400, "midiNote": 62 },
+    { "startMs": 23600, "endMs": 25000, "midiNote": 60 }
+  ]
+}
