@@ -1,1 +1,203 @@
 @import "tailwindcss";
+
+/* Rank FX Animations for Game-Show Result Modal */
+
+/* 1. Rank S: Metallic Shimmer Sweep */
+@keyframes ks-rank-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.ks-rank-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(251, 191, 36, 0.9) 0%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(251, 191, 36, 0.9) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ks-rank-shimmer 2.5s infinite linear;
+}
+
+/* 1b. Rank S: Celebratory Floating Confetti / Star Particles */
+@keyframes ks-rank-s-confetti {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-8px) rotate(45deg) scale(1.1);
+  }
+  80% {
+    opacity: 0.9;
+    transform: translateY(12px) rotate(180deg) scale(1);
+  }
+  100% {
+    transform: translateY(24px) rotate(360deg) scale(0.7);
+    opacity: 0;
+  }
+}
+
+.ks-confetti-particle {
+  animation: ks-rank-s-confetti 3s ease-in-out infinite;
+}
+
+/* 2. Rank A: Emerald/Cyan Pulsing Spotlight Ring */
+@keyframes ks-rank-a-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.35), 0 0 40px rgba(20, 184, 166, 0.15);
+    border-color: rgba(52, 211, 153, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(52, 211, 153, 0.6), 0 0 60px rgba(45, 212, 191, 0.3);
+    border-color: rgba(110, 231, 183, 0.9);
+  }
+}
+
+.ks-rank-a-pulse {
+  animation: ks-rank-a-pulse 2s ease-in-out infinite;
+}
+
+/* 3. Rank B: Sky/Indigo Rhythmic Equalizer Wave Pulse */
+@keyframes ks-rank-b-wave {
+  0%, 100% {
+    transform: scaleY(0.4);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleY(1.1);
+    opacity: 0.9;
+  }
+}
+
+.ks-rank-b-wave-1 {
+  animation: ks-rank-b-wave 1.2s ease-in-out infinite;
+}
+.ks-rank-b-wave-2 {
+  animation: ks-rank-b-wave 1.2s ease-in-out infinite 0.2s;
+}
+.ks-rank-b-wave-3 {
+  animation: ks-rank-b-wave 1.2s ease-in-out infinite 0.4s;
+}
+.ks-rank-b-wave-4 {
+  animation: ks-rank-b-wave 1.2s ease-in-out infinite 0.1s;
+}
+.ks-rank-b-wave-5 {
+  animation: ks-rank-b-wave 1.2s ease-in-out infinite 0.3s;
+}
+
+/* 4. Rank C: Playful Violet/Rose Gentle Bounce */
+@keyframes ks-rank-c-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.ks-rank-c-bounce {
+  animation: ks-rank-c-bounce 1.8s ease-in-out infinite;
+}
+
+/* 5. Rank Stamp Slam (Beat 2 / Stage 3) */
+@keyframes ks-rank-stamp-slam {
+  0% {
+    transform: scale(2.6) rotate(-10deg);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(0.94) rotate(1.5deg);
+    opacity: 1;
+  }
+  85% {
+    transform: scale(1.04) rotate(-0.5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.ks-rank-stamp-slam {
+  animation: ks-rank-stamp-slam 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* 6. Shockwave Ring */
+@keyframes ks-shockwave {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.ks-shockwave {
+  animation: ks-shockwave 0.65s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
+}
+
+/* 7. Subtle Rotating Outer Orbit Ring */
+@keyframes ks-orbit-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.ks-orbit-spin {
+  animation: ks-orbit-spin 22s linear infinite;
+  transform-origin: center;
+}
+
+/* 8. Symmetrical Flanking Stage Equalizer Wings */
+@keyframes ks-wing-eq {
+  0%, 100% {
+    transform: scaleY(0.25);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 0.9;
+  }
+}
+
+.ks-wing-eq {
+  animation: ks-wing-eq 1.35s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+/* Native Dark Color Scheme for Modals and Scrollbars */
+.ks-dark-scroll {
+  color-scheme: dark;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .ks-rank-shimmer,
+  .ks-confetti-particle,
+  .ks-rank-a-pulse,
+  .ks-rank-b-wave-1,
+  .ks-rank-b-wave-2,
+  .ks-rank-b-wave-3,
+  .ks-rank-b-wave-4,
+  .ks-rank-b-wave-5,
+  .ks-rank-c-bounce,
+  .ks-rank-stamp-slam,
+  .ks-shockwave,
+  .ks-orbit-spin,
+  .ks-wing-eq {
+    animation: none !important;
+  }
+}
