@@ -86,12 +86,16 @@
       return;
     }
 
-    // Try finding YouTube watch actions container
+    // Target YouTube's primary action bar so it sits inline with Like/Share buttons
     const actionsContainer =
+      document.querySelector('ytd-watch-metadata #actions-inner #top-level-buttons-computed') ||
       document.querySelector('ytd-watch-metadata #actions #top-level-buttons-computed') ||
+      document.querySelector('#actions-inner #top-level-buttons-computed') ||
       document.querySelector('#actions #top-level-buttons-computed') ||
+      document.querySelector('#top-level-buttons-computed') ||
+      document.querySelector('ytd-watch-metadata #actions-inner ytd-menu-renderer') ||
       document.querySelector('ytd-watch-metadata #actions-inner') ||
-      document.querySelector('#menu #top-level-buttons-computed');
+      document.querySelector('ytd-watch-metadata #actions');
 
     if (!actionsContainer) return;
 
@@ -125,8 +129,12 @@
       launchKaraScore(currentVideoId, videoTitle);
     });
 
-    // Prepend to action buttons
-    actionsContainer.insertBefore(btn, actionsContainer.firstChild);
+    // Insert inline directly inside the action bar
+    if (actionsContainer.id === 'top-level-buttons-computed') {
+      actionsContainer.insertBefore(btn, actionsContainer.firstChild);
+    } else {
+      actionsContainer.appendChild(btn);
+    }
   }
 
   // 3. Search Results & Video Card Badge Injection
