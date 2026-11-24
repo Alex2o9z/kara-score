@@ -16,6 +16,7 @@ export interface PitchTrackProps {
   pitch: SmoothedPitchFrame;
   score: ScoreSnapshot;
   playerState: PlayerState;
+  variant?: 'floating' | 'docked';
 }
 
 // Vocal MIDI Range: A2 (45) ~ 110Hz to A5 (81) ~ 880Hz (36 semitones)
@@ -48,6 +49,7 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
   pitch,
   score,
   playerState,
+  variant = 'docked',
 }) => {
   // Timeline synchronization for Tier 1 Exact Melody
   const effectiveTimeMs = activeSong
@@ -105,68 +107,76 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
       : null;
 
   return (
-    <div className="w-full space-y-2 select-none">
-      {/* Live Vocal HUD Bar */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <span className="text-zinc-500 font-semibold uppercase text-[10px] tracking-wider shrink-0">
-            {mode === 'exact' ? '🎯 Tier 1: Exact Melody' : '✨ Tier 2: Vocal Performance'}
-          </span>
-          {/* Prominent Live Detected Note Badge (NoteName + centsDelta) */}
-          <div
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono transition-all duration-150 ${
-              isVocalActive && pitch.noteName
-                ? isPerfect
-                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/70 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                  : isInTune
-                    ? 'bg-amber-950/80 text-amber-300 border-amber-500/70 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
-                    : 'bg-rose-950/60 text-rose-300 border-rose-600/50'
-                : 'bg-zinc-800/80 text-zinc-500 border-zinc-700/60'
-            }`}
-          >
-            <span className="text-[10px] text-zinc-400 uppercase font-semibold">Giọng:</span>
-            <span className="font-black text-xs sm:text-sm tracking-tight min-w-6 text-center">
-              {pitch.noteName || '—'}
+    <div className={`w-full ${variant === 'floating' ? '' : 'space-y-1.5'} select-none`}>
+      {/* Live Vocal HUD Bar (docked only) */}
+      {variant === 'docked' && (
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-3 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <span className="text-zinc-500 font-semibold uppercase text-[10px] tracking-wider shrink-0">
+              {mode === 'exact' ? '🎯 Tier 1: Exact Melody' : '✨ Tier 2: Vocal Performance'}
             </span>
-            {centsDelta !== null && isVocalActive && (
-              <span className="text-[10px] sm:text-xs font-bold border-l border-current/30 pl-1.5">
-                {centsDelta >= 0 ? '+' : ''}
-                {centsDelta.toFixed(0)}c
+            {/* Prominent Live Detected Note Badge (NoteName + centsDelta) */}
+            <div
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border font-mono transition-all duration-150 ${
+                isVocalActive && pitch.noteName
+                  ? isPerfect
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/70 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                    : isInTune
+                      ? 'bg-amber-950/80 text-amber-300 border-amber-500/70 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                      : 'bg-rose-950/60 text-rose-300 border-rose-600/50'
+                  : 'bg-zinc-800/80 text-zinc-500 border-zinc-700/60'
+              }`}
+            >
+              <span className="text-[10px] text-zinc-400 uppercase font-semibold">Giọng:</span>
+              <span className="font-black text-xs sm:text-sm tracking-tight min-w-6 text-center">
+                {pitch.noteName || '—'}
+              </span>
+              {centsDelta !== null && isVocalActive && (
+                <span className="text-[10px] sm:text-xs font-bold border-l border-current/30 pl-1.5">
+                  {centsDelta >= 0 ? '+' : ''}
+                  {centsDelta.toFixed(0)}c
+                </span>
+              )}
+            </div>
+
+            <div className="hidden md:flex items-center gap-1 font-mono">
+              <span className="text-zinc-400 text-[11px]">Hz:</span>
+              <span className="text-zinc-300 min-w-14 text-xs">
+                {pitch.hz ? `${pitch.hz.toFixed(1)} Hz` : '—'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] uppercase font-semibold text-zinc-500">Combo</span>
+              <span
+                className={`font-black text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 rounded font-mono ${
+                  score.combo > 0
+                    ? 'bg-amber-950/70 text-amber-400 border border-amber-800'
+                    : 'bg-zinc-800 text-zinc-500'
+                }`}
+              >
+                {score.combo}
+              </span>
+            </div>
+            {playerState !== 'PLAYING' && (
+              <span className="text-[10px] text-zinc-500 hidden sm:inline">
+                (Tạm dừng)
               </span>
             )}
           </div>
-
-          <div className="hidden md:flex items-center gap-1 font-mono">
-            <span className="text-zinc-400 text-[11px]">Hz:</span>
-            <span className="text-zinc-300 min-w-14 text-xs">
-              {pitch.hz ? `${pitch.hz.toFixed(1)} Hz` : '—'}
-            </span>
-          </div>
         </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase font-semibold text-zinc-500">Combo</span>
-            <span
-              className={`font-black text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 rounded font-mono ${
-                score.combo > 0
-                  ? 'bg-amber-950/70 text-amber-400 border border-amber-800'
-                  : 'bg-zinc-800 text-zinc-500'
-              }`}
-            >
-              {score.combo}
-            </span>
-          </div>
-          {playerState !== 'PLAYING' && (
-            <span className="text-[10px] text-zinc-500 hidden sm:inline">
-              (Tạm dừng)
-            </span>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Main Pitch Track Lane (Strictly GPU-composited CSS transforms, ZERO canvas redraw) */}
-      <div className="relative w-full h-36 sm:h-48 bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 rounded-xl border border-zinc-800 overflow-hidden shadow-inner">
+      <div
+        className={`relative w-full ${
+          variant === 'floating'
+            ? 'h-16 backdrop-blur-md bg-slate-950/70 border border-white/10 shadow-2xl'
+            : 'h-[76px] bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 shadow-inner'
+        } rounded-xl overflow-hidden`}
+      >
         {/* Horizontal Pitch Reference Grid Lines */}
         {REFERENCE_NOTES.map(({ midi, label }) => {
           const yPct = ((MAX_MIDI - midi) / MIDI_SPAN) * 100;

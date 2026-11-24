@@ -23,11 +23,11 @@ export interface DebugHUDProps {
 export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
-  // Accessible in DEV, when enabled via Settings, or via ?debug=1 URL parameter
+  // Accessible when enabled via Settings or via ?debug=1 URL parameter
   const isDebugUrl =
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('debug') === '1';
-  const shouldRender = Boolean(import.meta.env.DEV || props.showDebugHud || isDebugUrl);
+  const shouldRender = Boolean(props.showDebugHud || isDebugUrl);
 
   if (!shouldRender) {
     return null;

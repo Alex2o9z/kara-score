@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DebugHUD } from './components/DebugHUD';
 import { LatencyControl } from './components/LatencyControl';
 import { PitchTrack } from './components/PitchTrack';
 import { ResultModal } from './components/ResultModal';
+import { YouTubePlayer } from './components/YouTubePlayer';
 import { useKaraokeSession } from './hooks/useKaraokeSession';
 import {
   type JudgeMode,
@@ -50,8 +51,9 @@ export function App() {
   const [customSongTitle, setCustomSongTitle] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [isLoadingSong, setIsLoadingSong] = useState<boolean>(false);
-  const [isManualResultOpen, setIsManualResultOpen] = useState<boolean>(false);
-  const [hasDismissedEndedResult, setHasDismissedEndedResult] = useState<boolean>(false);
+  const [isResultModalOpen, setIsResultModalOpen] = useState<boolean>(false);
+  const autoResultShownRef = useRef<boolean>(false);
+  const hasEverPlayedRef = useRef<boolean>(false);
 
   // Party & App Settings
   const [settings, setSettings] = useState<KaraScoreSettings>(() => loadPartySettings());
@@ -60,13 +62,10 @@ export function App() {
   // UX state flags
   const [isSongDrawerOpen, setIsSongDrawerOpen] = useState<boolean>(false);
   const [isLatencyOpen, setIsLatencyOpen] = useState<boolean>(false);
-  const [showHeadphoneTip, setShowHeadphoneTip] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('karascore_headphone_tip_dismissed') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [showPitchTrack, setShowPitchTrack] = useState<boolean>(false);
+  const [showLiveScoreHud, setShowLiveScoreHud] = useState<boolean>(false);
+  const [userMicOverride, setUserMicOverride] = useState<boolean>(false);
+  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState<boolean>(false);
 
   const handleUpdateSettings = (updater: Partial<KaraScoreSettings>) => {
     setSettings((prev) => {
@@ -79,6 +78,8 @@ export function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isControlsDimmed, setIsControlsDimmed] = useState<boolean>(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync fullscreen state
   useEffect(() => {
@@ -90,6 +91,63 @@ export function App() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // Auto-dim controls in fullscreen after 3s of mouse/keyboard inactivity during playback
+  useEffect(() => {
+    if (!isFullscreen || playerState !== 'PLAYING') {
+      if (idleTimerRef.current !== null) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      return;
+    }
+
+    idleTimerRef.current = setTimeout(() => {
+      setIsControlsDimmed(true);
+    }, 3000);
+
+    const handleActivity = () => {
+      setIsControlsDimmed(false);
+      if (idleTimerRef.current !== null) {
+        clearTimeout(idleTimerRef.current);
+      }
+      idleTimerRef.current = setTimeout(() => {
+        setIsControlsDimmed(true);
+      }, 3000);
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      if (idleTimerRef.current !== null) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+    };
+  }, [isFullscreen, playerState]);
+
+  // Auto-open ResultModal once when video finishes after active singing
+  useEffect(() => {
+    if (playerState === 'PLAYING') {
+      hasEverPlayedRef.current = true;
+    } else if (playerState === 'ENDED') {
+      if (hasEverPlayedRef.current && !autoResultShownRef.current) {
+        autoResultShownRef.current = true;
+        setIsResultModalOpen(true);
+      }
+    }
+  }, [playerState]);
+
+  const isAnyOverlayOpen = isToolsMenuOpen || isLatencyOpen || isResultModalOpen;
+  const isEffectiveDimmed = isFullscreen && playerState === 'PLAYING' && isControlsDimmed && !isAnyOverlayOpen;
+
+  const isDebugUrl =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('debug') === '1';
+  const shouldShowDebugHud = Boolean(isDebugUrl || settings.showDebugHud);
 
   const handleToggleFullscreen = async () => {
     try {
@@ -107,6 +165,32 @@ export function App() {
     }
   };
 
+  const handleToggleMic = useCallback(async () => {
+    if (micStatus === 'running' || micStatus === 'starting') {
+      setUserMicOverride(true);
+      stopMic();
+    } else {
+      setUserMicOverride(false);
+      await startMic();
+    }
+  }, [micStatus, startMic, stopMic]);
+
+  const getMicStatusText = () => {
+    if (userMicOverride) {
+      return '🔇 Mic: Đã tắt';
+    }
+    if (micStatus === 'running') {
+      return '🎙️ Mic: Tự động (Đang thu)';
+    }
+    if (micStatus === 'starting') {
+      return '🎙️ Mic: Đang kết nối...';
+    }
+    if (micStatus === 'denied' || micStatus === 'error') {
+      return '⚠️ Mic: Bị chặn';
+    }
+    return '🎙️ Mic: Chờ nhạc phát';
+  };
+
   // Keyboard shortcut M to toggle microphone (ignoring input/textarea focus)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -117,11 +201,7 @@ export function App() {
           return;
         }
         e.preventDefault();
-        if (micStatus === 'running') {
-          stopMic();
-        } else {
-          void startMic();
-        }
+        void handleToggleMic();
       }
     };
 
@@ -129,7 +209,7 @@ export function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [micStatus, startMic, stopMic]);
+  }, [handleToggleMic]);
 
   // Restore hardware latency calibration from localStorage
   useEffect(() => {
@@ -193,39 +273,22 @@ export function App() {
     };
   }, [loadVideo]);
 
-  // Touch primary device check (to respect iOS Safari strict user gesture requirement)
-  const isTouchDevice =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(pointer: coarse)').matches;
-
-  // Auto-attempt startMic() on desktop when player transitions to PLAYING if autoMicOnPlay is enabled
+  // Auto-Mic Sync with YouTube Playback (starts on PLAYING, pauses on PAUSED/ENDED unless overridden)
   useEffect(() => {
-    if (playerState === 'PLAYING' && micStatus === 'idle' && settings.autoMicOnPlay && !isTouchDevice) {
-      if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
-        navigator.permissions
-          .query({ name: 'microphone' as PermissionName })
-          .then((res) => {
-            if (res.state === 'granted') {
-              void startMic();
-            }
-          })
-          .catch(() => {
-            // Safe fallback if permission query not supported
-          });
+    if (userMicOverride) {
+      return;
+    }
+
+    if (playerState === 'PLAYING') {
+      if (micStatus === 'idle') {
+        void startMic();
+      }
+    } else if (playerState === 'PAUSED' || playerState === 'ENDED') {
+      if (micStatus === 'running' || micStatus === 'starting') {
+        stopMic();
       }
     }
-  }, [playerState, micStatus, startMic, settings.autoMicOnPlay, isTouchDevice]);
-
-  // Combined 1-tap gesture for iOS/touch devices (starts mic and video playback synchronously)
-  const handleTouchStartSinging = async () => {
-    try {
-      await startMic();
-    } catch {
-      // Errors handled via micError state
-    }
-    play();
-  };
+  }, [playerState, userMicOverride, micStatus, startMic, stopMic]);
 
   // 1-tap clipboard paste helper
   const handlePasteClipboard = async () => {
@@ -256,21 +319,16 @@ export function App() {
     }
   };
 
-  // Derive ResultModal visibility: opens on ENDED (unless dismissed) or via manual trigger
-  const isResultOpen =
-    isManualResultOpen || (playerState === 'ENDED' && !hasDismissedEndedResult);
 
-  const handleDismissHeadphoneTip = () => {
-    setShowHeadphoneTip(false);
-    try {
-      localStorage.setItem('karascore_headphone_tip_dismissed', 'true');
-    } catch {
-      // Safe fallback
-    }
-  };
+
+
 
   const handleSelectCatalogSong = async (entry: SongCatalogEntry) => {
     try {
+      autoResultShownRef.current = false;
+      hasEverPlayedRef.current = false;
+      setIsResultModalOpen(false);
+      setUserMicOverride(false);
       setIsLoadingSong(true);
       setInputError(null);
       const songData = await loadSongChart(entry);
@@ -293,6 +351,10 @@ export function App() {
       return;
     }
     setInputError(null);
+    autoResultShownRef.current = false;
+    hasEverPlayedRef.current = false;
+    setIsResultModalOpen(false);
+    setUserMicOverride(false);
 
     const matched = findSongInCatalog(catalog, videoId);
     if (matched) {
@@ -313,6 +375,10 @@ export function App() {
       try {
         const rawJson = event.target?.result as string;
         const imported = parseCustomSongJson(rawJson);
+        autoResultShownRef.current = false;
+        hasEverPlayedRef.current = false;
+        setIsResultModalOpen(false);
+        setUserMicOverride(false);
         loadVideo(imported.youtubeVideoId, imported);
         setCustomInput(imported.youtubeVideoId);
         setCustomSongTitle(imported.title);
@@ -330,18 +396,17 @@ export function App() {
   };
 
   const handleReplay = () => {
-    setHasDismissedEndedResult(false);
-    setIsManualResultOpen(false);
+    autoResultShownRef.current = false;
+    hasEverPlayedRef.current = false;
+    setIsResultModalOpen(false);
+    setUserMicOverride(false);
     resetScore();
     seekTo(0);
     play();
   };
 
   const handleCloseResult = () => {
-    setIsManualResultOpen(false);
-    if (playerState === 'ENDED') {
-      setHasDismissedEndedResult(true);
-    }
+    setIsResultModalOpen(false);
   };
 
   const getRatingColor = (rating: string) => {
@@ -427,32 +492,16 @@ export function App() {
               <span className="hidden sm:inline">Cài đặt</span>
             </button>
 
-            {/* Fullscreen header toggle */}
+            {/* Single KaraScore Fullscreen toggle */}
             <button
               type="button"
               onClick={() => void handleToggleFullscreen()}
-              className="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold border bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5 h-8"
-              title="Bật/Tắt chế độ toàn màn hình"
+              className="px-2.5 sm:px-3.5 py-1 rounded-xl text-xs font-bold border bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 text-emerald-300 border-emerald-500/40 transition-all cursor-pointer flex items-center gap-1.5 h-8 shadow-sm active:scale-95"
+              title="Bật chế độ Hát Toàn Màn Hình KaraScore"
             >
               <span>{isFullscreen ? '⛷' : '⛶'}</span>
-              <span className="hidden sm:inline">{isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
+              <span className="hidden sm:inline">{isFullscreen ? 'Thu nhỏ' : 'Hát Toàn Màn Hình'}</span>
             </button>
-
-            {/* Mic status badge */}
-            <span
-              className={`px-2.5 py-1 rounded-lg font-semibold text-xs border flex items-center gap-1.5 h-8 ${
-                micStatus === 'running'
-                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600 animate-pulse'
-                  : micStatus === 'starting'
-                    ? 'bg-amber-950/80 text-amber-300 border-amber-600'
-                    : micStatus === 'denied' || micStatus === 'error'
-                      ? 'bg-rose-950/80 text-rose-300 border-rose-600'
-                      : 'bg-zinc-900 text-zinc-400 border-zinc-800'
-              }`}
-            >
-              <span>🎤</span>
-              <span className="hidden sm:inline">Mic: {micStatus.toUpperCase()}</span>
-            </span>
           </div>
         </header>
 
@@ -553,25 +602,7 @@ export function App() {
           </div>
         )}
 
-        {/* Headphone Recommendation Tip Banner (Dismissible) */}
-        {showHeadphoneTip && (
-          <div className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-indigo-950/60 border border-indigo-800/80 text-indigo-200 text-xs animate-in fade-in duration-200">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="shrink-0 text-base">🎧</span>
-              <span className="truncate sm:whitespace-normal">
-                <strong>Gợi ý:</strong> Hãy đeo tai nghe khi hát để tránh âm thanh từ loa vọng vào micro và chấm điểm chuẩn xác nhất!
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleDismissHeadphoneTip}
-              className="text-indigo-400 hover:text-indigo-200 px-2 py-1 rounded text-xs font-bold cursor-pointer shrink-0"
-              title="Đã hiểu, đóng thông báo"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+
 
         {/* Actionable Error Recovery Alerts */}
         {ytError && (
@@ -665,142 +696,374 @@ export function App() {
         {/* Karaoke Stage Container (Supports Fullscreen & Desktop Zero-Scroll) */}
         <div
           ref={stageRef}
-          className={`w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-2 max-lg:landscape:grid max-lg:landscape:grid-cols-[1.35fr_1fr] max-lg:landscape:items-start max-lg:landscape:gap-3 ${
-            isFullscreen ? 'p-3 sm:p-6 bg-zinc-950 overflow-y-auto max-h-screen' : ''
-          }`}
+          className={
+            isFullscreen
+              ? 'w-full h-full bg-black relative overflow-hidden select-none'
+              : 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-2 max-lg:landscape:grid max-lg:landscape:grid-cols-[1.35fr_1fr] max-lg:landscape:items-start max-lg:landscape:gap-3'
+          }
         >
-          {/* YouTube Player Container (Strictly ZERO overlays on top per YouTube policy) */}
-          <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-            <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-zinc-800 max-h-full lg:max-w-[min(1200px,calc((100dvh-136px)*16/9))]">
-              <div
-                ref={attachPlayerContainer}
-                className="w-full h-full"
-                id="youtube-player"
-              />
-            </div>
-          </div>
-
-          {/* Unified 84px 3-Column Horizontal Control Strip Directly Underneath */}
-          <div className="w-full lg:max-w-[min(1200px,calc((100dvh-136px)*16/9))] rounded-2xl bg-zinc-900/90 border border-zinc-800 p-2 sm:p-2.5 shadow-xl shrink-0">
-            <div className="flex flex-col lg:grid lg:grid-cols-[auto_1fr_auto] gap-2 lg:gap-3 items-center w-full lg:h-[84px]">
-              {/* Left Column: [🎤 Bật/Dừng Mic (M)] + compact [⏱ Độ trễ: 0ms] trigger */}
-              <div className="flex flex-row lg:flex-col gap-1.5 w-full lg:w-40 shrink-0 justify-between lg:justify-center">
-                {micStatus !== 'running' ? (
-                  playerState !== 'PLAYING' && isTouchDevice ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleTouchStartSinging()}
-                      className="flex-1 lg:w-full px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/80 animate-pulse min-h-[36px]"
-                      title="Chạm để bắt đầu phát video và bật Micro cùng lúc"
+          {/* 1. Fullscreen Top-Right KTV Glass HUD Cluster (top-3 right-4 z-30) - Zero top-left obstruction */}
+          {isFullscreen && (
+            <div
+              className={`absolute top-3 right-4 z-30 flex items-center gap-2 pointer-events-none transition-opacity duration-300 ${
+                isEffectiveDimmed ? 'opacity-35 hover:opacity-100' : 'opacity-100'
+              }`}
+            >
+              <div className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md bg-slate-950/75 border border-white/15 shadow-2xl text-xs">
+                {/* Optional Live Score Pill */}
+                {showLiveScoreHud && (
+                  <div className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-zinc-900/80 border border-zinc-700/60 font-mono">
+                    <span className="text-[10px] text-zinc-400 uppercase font-semibold">Điểm:</span>
+                    <span className="text-sm font-black text-emerald-400">{score.score}</span>
+                    <span
+                      className={`text-[9px] px-1 py-0.2 rounded border font-extrabold ${getRatingColor(
+                        score.rating
+                      )}`}
                     >
-                      <span>🎤</span>
-                      <span>Bật Mic & Hát</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startMic}
-                      className="flex-1 lg:w-full px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/80 animate-pulse min-h-[36px]"
-                      title="Bật Micro để chấm điểm (Phím tắt: M)"
-                    >
-                      <span>🎤</span>
-                      <span>Bật Mic (M)</span>
-                    </button>
-                  )
-                ) : (
-                  <button
-                    type="button"
-                    onClick={stopMic}
-                    className="flex-1 lg:w-full px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 min-h-[36px]"
-                    title="Dừng Micro (Phím tắt: M)"
-                  >
-                    <span>🛑</span>
-                    <span>Dừng Mic (M)</span>
-                  </button>
+                      {score.rating}
+                    </span>
+                    {score.combo > 0 && (
+                      <span className="text-[10px] text-amber-400 font-bold ml-1">x{score.combo}</span>
+                    )}
+                  </div>
                 )}
 
+                {/* Primary [🏆 Chốt điểm] */}
                 <button
                   type="button"
-                  onClick={() => setIsLatencyOpen((prev) => !prev)}
-                  className={`flex-1 lg:w-full px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[30px] ${
-                    isLatencyOpen
-                      ? 'bg-cyan-950 text-cyan-300 border-cyan-700'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                  }`}
-                  title="Hiệu chỉnh độ trễ âm thanh"
+                  onClick={() => setIsResultModalOpen(true)}
+                  className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/30 to-emerald-500/30 hover:from-amber-500/50 hover:to-emerald-500/50 border border-emerald-500/50 text-emerald-200 font-bold text-xs transition-all cursor-pointer flex items-center gap-1 shadow-sm active:scale-95"
+                  title="Xem bảng chấm điểm"
                 >
-                  <span>⏱️ Độ trễ:</span>
-                  <span className="font-mono font-bold">
-                    {latencyOffsetMs > 0 ? `+${latencyOffsetMs}` : latencyOffsetMs}ms
-                  </span>
+                  <span>🏆</span>
+                  <span>Chốt điểm</span>
+                </button>
+
+                {/* Compact [⋯] Popover Menu */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsToolsMenuOpen((prev) => !prev)}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm transition-all cursor-pointer border ${
+                      isToolsMenuOpen
+                        ? 'bg-zinc-700 text-white border-zinc-500 shadow-sm'
+                        : 'bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 border-zinc-700/60'
+                    }`}
+                    title="Menu công cụ & cài đặt"
+                  >
+                    ⋯
+                  </button>
+
+                  {isToolsMenuOpen && (
+                    <div className="absolute right-0 top-9 z-50 w-60 p-2 rounded-2xl bg-zinc-950/95 border border-zinc-700/80 shadow-2xl backdrop-blur-md space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100">
+                      {/* [🎙️ Mic (M)] */}
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleMic()}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-zinc-800/80 text-left flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{micStatus === 'running' ? '🎙️' : '🔇'}</span>
+                          <span>Microphone</span>
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            micStatus === 'running'
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                              : 'bg-zinc-800 text-zinc-400'
+                          }`}
+                        >
+                          {micStatus === 'running' ? 'Bật (M)' : 'Tắt (M)'}
+                        </span>
+                      </button>
+
+                      {/* [〰 Sóng âm] */}
+                      <button
+                        type="button"
+                        onClick={() => setShowPitchTrack((prev) => !prev)}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-zinc-800/80 text-left flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>〰</span>
+                          <span>Dải sóng âm nốt</span>
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            showPitchTrack
+                              ? 'bg-cyan-950 text-cyan-300 border border-cyan-700'
+                              : 'bg-zinc-800 text-zinc-400'
+                          }`}
+                        >
+                          {showPitchTrack ? 'Hiện' : 'Ẩn'}
+                        </span>
+                      </button>
+
+                      {/* [🎯 Điểm trực tiếp] */}
+                      <button
+                        type="button"
+                        onClick={() => setShowLiveScoreHud((prev) => !prev)}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-zinc-800/80 text-left flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🎯</span>
+                          <span>Điểm trực tiếp</span>
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            showLiveScoreHud
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                              : 'bg-zinc-800 text-zinc-400'
+                          }`}
+                        >
+                          {showLiveScoreHud ? 'Hiện' : 'Ẩn'}
+                        </span>
+                      </button>
+
+                      {/* [⏱ Độ trễ] */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsLatencyOpen((prev) => !prev);
+                          setIsToolsMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-zinc-800/80 text-left flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>⏱️</span>
+                          <span>Hiệu chỉnh độ trễ</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {latencyOffsetMs > 0 ? `+${latencyOffsetMs}` : latencyOffsetMs}ms
+                        </span>
+                      </button>
+
+                      {/* [↻ Hát lại] */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleReplay();
+                          setIsToolsMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl hover:bg-zinc-800/80 text-left flex items-center gap-2 transition-colors cursor-pointer border-t border-zinc-800/80 pt-2"
+                      >
+                        <span>↻</span>
+                        <span>Hát lại từ đầu</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* [⛷ Thoát toàn màn hình] */}
+                <button
+                  type="button"
+                  onClick={() => void handleToggleFullscreen()}
+                  className="px-2.5 py-1 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs border border-zinc-700/60 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                  title="Thoát chế độ toàn màn hình"
+                >
+                  <span>⛷</span>
+                  <span className="hidden sm:inline">Thoát</span>
                 </button>
               </div>
-
-              {/* Center Column: PitchTrack (with live detected note NoteName + cents and Combo in its header) */}
-              <div className="min-w-0 flex-1 w-full lg:max-h-[84px] [&>div]:lg:p-1.5 [&>div]:lg:space-y-1 [&>div>div:first-child]:lg:py-0.5 [&_.relative.w-full]:lg:!h-11">
-                <PitchTrack
-                  mode={mode}
-                  activeSong={activeSong}
-                  interpolatedTimeMs={interpolatedTimeMs}
-                  latencyOffsetMs={latencyOffsetMs}
-                  pitch={pitch}
-                  score={score}
-                  playerState={playerState}
-                />
-              </div>
-
-              {/* Right Column: Live Điểm • Hạng readout directly above [🏆 Chốt điểm] + [↻ Hát lại] */}
-              <div className="flex flex-row lg:flex-col items-center justify-between lg:justify-center gap-1.5 w-full lg:w-40 shrink-0">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">Điểm:</span>
-                  <span className="text-2xl font-black text-emerald-400 tracking-tight leading-none">
-                    {score.score}
-                  </span>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded border font-extrabold leading-none ${getRatingColor(
-                      score.rating
-                    )}`}
-                  >
-                    {score.rating}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 w-auto lg:w-full">
-                  <button
-                    type="button"
-                    onClick={() => setIsManualResultOpen(true)}
-                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm active:scale-95 whitespace-nowrap min-h-[30px] flex-1"
-                    title="Xem bảng chấm điểm chi tiết"
-                  >
-                    <span>🏆 Chốt điểm</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReplay}
-                    className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 font-semibold text-xs border border-zinc-700 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm whitespace-nowrap min-h-[30px]"
-                    title="Hát lại từ đầu"
-                  >
-                    <span>↻</span>
-                  </button>
-                </div>
-              </div>
             </div>
+          )}
 
-            {/* Latency Control Popover / Panel inside Stage */}
-            {isLatencyOpen && (
-              <div className="pt-2 mt-2 border-t border-zinc-800 animate-in fade-in duration-150">
-                <LatencyControl
-                  latencyOffsetMs={latencyOffsetMs}
-                  setLatencyOffsetMs={setLatencyOffsetMs}
-                  onClose={() => setIsLatencyOpen(false)}
-                />
+          {/* YouTube Player Container */}
+          <YouTubePlayer
+            attachPlayerContainer={attachPlayerContainer}
+            isFullscreen={isFullscreen}
+          />
+
+          {/* 2. Floating Pitch Ribbon (bottom-[60px] inset-x-6 z-20 - only if opt-in showPitchTrack) */}
+          {isFullscreen && showPitchTrack && (
+            <div className="absolute bottom-[60px] inset-x-6 z-20 pointer-events-none transition-all duration-300">
+              <PitchTrack
+                mode={mode}
+                activeSong={activeSong}
+                interpolatedTimeMs={interpolatedTimeMs}
+                latencyOffsetMs={latencyOffsetMs}
+                pitch={pitch}
+                score={score}
+                playerState={playerState}
+                variant="floating"
+              />
+            </div>
+          )}
+
+          {/* Fullscreen Latency Popover inside stageRef */}
+          {isFullscreen && isLatencyOpen && (
+            <div className="absolute top-14 right-4 z-40 w-80 max-w-[90vw] p-3 rounded-2xl bg-zinc-900/95 border border-zinc-700 shadow-2xl backdrop-blur-md animate-in fade-in duration-150 pointer-events-auto">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
+                <span className="text-xs font-bold text-zinc-200">⏱️ Hiệu chỉnh độ trễ âm thanh</span>
+                <button
+                  type="button"
+                  onClick={() => setIsLatencyOpen(false)}
+                  className="text-zinc-400 hover:text-white text-xs px-1.5 py-0.5 rounded bg-zinc-800 cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-            )}
-          </div>
+              <LatencyControl
+                latencyOffsetMs={latencyOffsetMs}
+                setLatencyOffsetMs={setLatencyOffsetMs}
+                onClose={() => setIsLatencyOpen(false)}
+              />
+            </div>
+          )}
+
+          {/* Windowed Desktop Mode: Unified Control Strip Directly Underneath */}
+          {!isFullscreen && (
+            <div className="w-full max-w-6xl mx-auto rounded-2xl bg-zinc-900/90 border border-zinc-800 p-2 sm:p-3 shadow-xl shrink-0">
+              <div className="flex flex-col lg:grid lg:grid-cols-[auto_1fr_auto] gap-2 lg:gap-4 items-center w-full">
+                {/* Left Column: [🎙️ Mic Status (M)] + compact [⏱ Độ trễ] trigger */}
+                <div className="flex flex-row lg:flex-col gap-1.5 w-full lg:w-44 shrink-0 justify-between lg:justify-center">
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleMic()}
+                    className={`flex-1 lg:w-full px-2.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95 min-h-[36px] border ${
+                      userMicOverride
+                        ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border-zinc-700'
+                        : micStatus === 'running'
+                          ? 'bg-emerald-950/90 text-emerald-300 border-emerald-600 shadow-emerald-950/50'
+                          : micStatus === 'starting'
+                            ? 'bg-amber-950/90 text-amber-300 border-amber-600'
+                            : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-700'
+                    }`}
+                    title="Bật/Tắt Micro (Phím tắt: M)"
+                  >
+                    <span>{getMicStatusText()}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsLatencyOpen((prev) => !prev)}
+                    className={`flex-1 lg:w-full px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[30px] ${
+                      isLatencyOpen
+                        ? 'bg-cyan-950 text-cyan-300 border-cyan-700'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                    }`}
+                    title="Hiệu chỉnh độ trễ âm thanh"
+                  >
+                    <span>⏱️ Độ trễ:</span>
+                    <span className="font-mono font-bold">
+                      {latencyOffsetMs > 0 ? `+${latencyOffsetMs}` : latencyOffsetMs}ms
+                    </span>
+                  </button>
+                </div>
+
+                {/* Center Column: PitchTrack (if showPitchTrack) OR Clean Stage Banner + Toggles */}
+                <div className="min-w-0 flex-1 w-full space-y-1.5">
+                  {showPitchTrack ? (
+                    <PitchTrack
+                      mode={mode}
+                      activeSong={activeSong}
+                      interpolatedTimeMs={interpolatedTimeMs}
+                      latencyOffsetMs={latencyOffsetMs}
+                      pitch={pitch}
+                      score={score}
+                      playerState={playerState}
+                      variant="docked"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center py-2 px-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 text-xs text-zinc-400 gap-2">
+                      <span>🎵</span>
+                      <span className="font-medium truncate">
+                        Sân khấu sạch • Chấm điểm âm thầm cho đến khi chốt điểm
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Clean Stage Display Toggles Bar */}
+                  <div className="flex items-center justify-center gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowPitchTrack((prev) => !prev)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                        showPitchTrack
+                          ? 'bg-cyan-950/80 text-cyan-300 border-cyan-700'
+                          : 'bg-zinc-950 hover:bg-zinc-800 text-zinc-400 border-zinc-800'
+                      }`}
+                      title="Bật/Tắt dải nốt sóng âm trên sân khấu"
+                    >
+                      <span>〰</span>
+                      <span>{showPitchTrack ? 'Ẩn sóng âm' : 'Hiện sóng âm'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowLiveScoreHud((prev) => !prev)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                        showLiveScoreHud
+                          ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700'
+                          : 'bg-zinc-950 hover:bg-zinc-800 text-zinc-400 border-zinc-800'
+                      }`}
+                      title="Bật/Tắt hiển thị điểm số trực tiếp khi đang hát"
+                    >
+                      <span>🎯</span>
+                      <span>{showLiveScoreHud ? 'Ẩn điểm trực tiếp' : 'Hiện điểm trực tiếp'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Live Điểm (if opt-in) + [🏆 Chốt điểm] + [↻ Hát lại] */}
+                <div className="flex flex-row lg:flex-col items-center justify-between lg:justify-center gap-1.5 w-full lg:w-40 shrink-0">
+                  {showLiveScoreHud ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">Điểm:</span>
+                      <span className="text-2xl font-black text-emerald-400 tracking-tight leading-none">
+                        {score.score}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded border font-extrabold leading-none ${getRatingColor(
+                          score.rating
+                        )}`}
+                      >
+                        {score.rating}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-zinc-500 font-semibold flex items-center gap-1">
+                      <span>🎯</span>
+                      <span>Điểm số đang ẩn</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5 w-auto lg:w-full">
+                    <button
+                      type="button"
+                      onClick={() => setIsResultModalOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm active:scale-95 whitespace-nowrap min-h-[30px] flex-1"
+                      title="Xem bảng chấm điểm chi tiết"
+                    >
+                      <span>🏆 Chốt điểm</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReplay}
+                      className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 font-semibold text-xs border border-zinc-700 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm whitespace-nowrap min-h-[30px]"
+                      title="Hát lại từ đầu"
+                    >
+                      <span>↻</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Latency Control Popover / Panel inside Stage */}
+              {isLatencyOpen && (
+                <div className="pt-2 mt-2 border-t border-zinc-800 animate-in fade-in duration-150">
+                  <LatencyControl
+                    latencyOffsetMs={latencyOffsetMs}
+                    setLatencyOffsetMs={setLatencyOffsetMs}
+                    onClose={() => setIsLatencyOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Post-song Summary Modal - INSIDE stageRef so Fullscreen top layer displays it cleanly */}
           <ResultModal
-            isOpen={isResultOpen}
+            isOpen={isResultModalOpen}
             onClose={handleCloseResult}
             onReplay={handleReplay}
             onSelectSong={() => setIsSongDrawerOpen(true)}
@@ -916,10 +1179,19 @@ export function App() {
               </button>
             </div>
 
+            {/* Headphone tip notice inside Settings */}
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-950/60 border border-indigo-800/80 text-indigo-200 text-xs">
+              <span className="text-base shrink-0">🎧</span>
+              <div className="space-y-0.5 leading-relaxed">
+                <span className="font-bold text-white block">Gợi ý tai nghe:</span>
+                <span>Hãy đeo tai nghe khi hát để tránh âm thanh từ loa vọng ngược vào micro, giúp hệ thống chấm điểm chuẩn xác nhất.</span>
+              </div>
+            </div>
+
             {/* 4. Show Debug HUD Toggle */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
               <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-semibold text-zinc-200 block">Hiện Debug HUD</span>
+                <span className="text-xs font-semibold text-zinc-200 block">Chế độ nhà phát triển (Dev Telemetry)</span>
                 <span className="text-[11px] text-zinc-400 block">
                   Bảng thông số kỹ thuật âm thanh &amp; độ trễ trực tiếp (hoặc dùng ?debug=1)
                 </span>
@@ -953,22 +1225,24 @@ export function App() {
         </div>
       )}
 
-      {/* Telemetry Overlay HUD (Accessible via DEV, Settings toggle, or ?debug=1) */}
-      <DebugHUD
-        micStatus={micStatus}
-        micError={micError}
-        sampleRate={sampleRate}
-        pitch={pitch}
-        playerState={playerState}
-        rawVideoTimeSec={rawVideoTimeSec}
-        interpolatedTimeMs={interpolatedTimeMs}
-        latencyOffsetMs={latencyOffsetMs}
-        ytError={ytError}
-        score={score}
-        activeSongTitle={activeSong?.title || customSongTitle || undefined}
-        showDebugHud={settings.showDebugHud}
-        judgeMode={settings.judgeMode}
-      />
+      {/* Telemetry Overlay HUD (Accessible via Dev Telemetry toggle in Settings or ?debug=1) */}
+      {shouldShowDebugHud && (
+        <DebugHUD
+          micStatus={micStatus}
+          micError={micError}
+          sampleRate={sampleRate}
+          pitch={pitch}
+          playerState={playerState}
+          rawVideoTimeSec={rawVideoTimeSec}
+          interpolatedTimeMs={interpolatedTimeMs}
+          latencyOffsetMs={latencyOffsetMs}
+          ytError={ytError}
+          score={score}
+          activeSongTitle={activeSong?.title || customSongTitle || undefined}
+          showDebugHud={settings.showDebugHud}
+          judgeMode={settings.judgeMode}
+        />
+      )}
     </div>
   );
 }
