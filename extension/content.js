@@ -126,6 +126,10 @@
     btn.dataset.karascoreInjected = 'true';
     btn.dataset.videoId = videoId;
     btn.title = 'Mở bài hát này trên KaraScore để hát karaoke và chấm điểm trực tiếp';
+    btn.style.margin = '0';
+    btn.style.padding = '0 16px';
+    btn.style.height = '36px';
+    btn.style.borderRadius = '18px';
     btn.innerHTML = `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
