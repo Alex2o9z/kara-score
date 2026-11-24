@@ -1,0 +1,83 @@
+/* KaraScore Companion Chrome Extension - Injected Styles */
+
+.karascore-watch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #059669 0%, #0d9488 100%) !important;
+  color: #ffffff !important;
+  font-family: "Roboto", "Segoe UI", Arial, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  padding: 0 16px !important;
+  height: 36px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35) !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin-right: 8px !important;
+  vertical-align: middle !important;
+  user-select: none !important;
+}
+
+.karascore-watch-btn:hover {
+  background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%) !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+.karascore-watch-btn:active {
+  transform: scale(0.96) !important;
+}
+
+.karascore-watch-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+/* Card Search / Grid Badge Button */
+.karascore-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(5, 150, 105, 0.15) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(52, 211, 153, 0.4) !important;
+  font-family: "Roboto", "Segoe UI", Arial, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+  width: fit-content !important;
+}
+
+.karascore-card-badge:hover {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+.karascore-card-badge:active {
+  transform: scale(0.95) !important;
+}
+
+.karascore-card-badge svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  flex-shrink: 0;
+}

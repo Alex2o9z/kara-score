@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "KaraScore — YouTube Karaoke Bridge",
+  "version": "1.0.0",
+  "description": "One-click bridge from YouTube karaoke videos into KaraScore real-time vocal scoring.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "KaraScore Bridge Settings"
+  }
+}

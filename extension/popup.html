@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KaraScore Bridge Settings</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+      padding: 16px;
+      font-size: 13px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #27272a;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .title {
+      font-weight: 800;
+      font-size: 15px;
+      background: linear-gradient(135deg, #34d399, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: #064e3b;
+      color: #6ee7b7;
+      border: 1px solid #047857;
+    }
+    .subtitle {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #71717a;
+      margin-bottom: 8px;
+    }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .radio-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .radio-card:hover {
+      border-color: #3f3f46;
+      background: #27272a;
+    }
+    .radio-card.active {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+    }
+    .radio-card input {
+      margin-top: 2px;
+      accent-color: #10b981;
+      cursor: pointer;
+    }
+    .radio-info {
+      flex: 1;
+    }
+    .radio-label {
+      font-weight: 600;
+      color: #f4f4f5;
+      font-size: 12px;
+    }
+    .radio-url {
+      font-family: monospace;
+      font-size: 10px;
+      color: #a1a1aa;
+      margin-top: 2px;
+      word-break: break-all;
+    }
+    .custom-input {
+      width: 100%;
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: #f4f4f5;
+      font-family: monospace;
+      font-size: 11px;
+      margin-top: 6px;
+      display: none;
+    }
+    .custom-input:focus {
+      outline: none;
+      border-color: #10b981;
+    }
+    .status-msg {
+      font-size: 11px;
+      color: #34d399;
+      font-weight: 600;
+      min-height: 16px;
+      text-align: center;
+      margin-top: 8px;
+      transition: opacity 0.2s ease;
+      opacity: 0;
+    }
+    .status-msg.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <span class="title">KaraScore</span>
+      <span class="badge">MV3 Bridge</span>
+    </div>
+    <span style="font-size: 10px; color: #71717a;">v1.0.0</span>
+  </div>
+
+  <p class="subtitle">
+    Chọn phiên bản KaraScore sẽ mở khi nhấp nút <strong>"🎤 Hát chấm điểm"</strong> trên YouTube.
+  </p>
+
+  <div class="section-title">Môi trường đích (Target URL)</div>
+
+  <div class="options" id="envOptions">
+    <label class="radio-card" data-url="https://kara-score.pages.dev">
+      <input type="radio" name="targetEnv" value="https://kara-score.pages.dev">
+      <div class="radio-info">
+        <div class="radio-label">Production (Cloudflare Pages)</div>
+        <div class="radio-url">https://kara-score.pages.dev</div>
+      </div>
+    </label>
+
+    <label class="radio-card" data-url="https://dev.kara-score.pages.dev">
+      <input type="radio" name="targetEnv" value="https://dev.kara-score.pages.dev">
+      <div class="radio-info">
+        <div class="radio-label">Preview Branch (Dev)</div>
+        <div class="radio-url">https://dev.kara-score.pages.dev</div>
+      </div>
+    </label>
+
+    <label class="radio-card" data-url="http://localhost:5174">
+      <input type="radio" name="targetEnv" value="http://localhost:5174">
+      <div class="radio-info">
+        <div class="radio-label">Local Development</div>
+        <div class="radio-url">http://localhost:5174</div>
+      </div>
+    </label>
+
+    <label class="radio-card" data-url="custom">
+      <input type="radio" name="targetEnv" value="custom">
+      <div class="radio-info">
+        <div class="radio-label">Tùy chỉnh (Custom URL)</div>
+        <input type="text" id="customUrlInput" class="custom-input" placeholder="https://..." />
+      </div>
+    </label>
+  </div>
+
+  <div id="statusMsg" class="status-msg">✓ Đã lưu cài đặt</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

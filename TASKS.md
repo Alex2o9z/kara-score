@@ -3,21 +3,26 @@
 Last Updated: 2026-11-24
 
 ## 1. Last Completed Task
-- **Task ID:** `T3.2`
-- **Result:** Implemented static song catalog (`public/songs/index.json` + `public/songs/demo-ballad.json`), song catalog service with URL query routing (`parseLaunchParams`), chart validation (`parseCustomSongJson`), 19 unit tests in `songCatalog.test.ts`, song selector UI, custom JSON file import, mobile YouTube search shortcut, and YouTube embed-blocked recovery banner in `src/App.tsx`. Configured `server: { allowedHosts: true }` in `vite.config.ts`.
+- **Task ID:** `T3.3`
+- **Result:** Implemented lightweight Companion Chrome Extension (Manifest V3) in `extension/` (`manifest.json`, `content.js`, `styles.css`, `popup.html`, `popup.js`). Injects "🎤 Hát chấm điểm" watch page button and "🎤 Hát" search/grid card badges with idempotent SPA navigation handling (`yt-navigate-finish` + debounced `MutationObserver`), player pause trigger, and environment switcher popup (Production, Preview, Localhost).
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
-- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (10 files, 102 tests), and `build`.
-- **Attempted Solutions:** Resolved `preserve-caught-error` lint check in `songCatalog.ts` by propagating `{ cause: err }`; tested query parameter parsing and custom JSON schema validation thoroughly.
+- **Evidence:** `node --check` passed for all extension scripts, `manifest.json` is valid MV3 JSON, and `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (10 files, 102 tests), and `build`.
+- **Attempted Solutions:** Kept extension files isolated from web build pipeline (`tsconfig.json`/`eslint.config.js`) to guarantee zero interference while providing clean cross-tab launching.
 
 ## 3. First Action Next Session
-- **Task ID:** `T3.3`
-- **Expected Result:** Implement Companion Chrome Extension (Manifest V3 in `extension/`) injecting `"🎤 Hát chấm điểm"` launch button on YouTube search & watch pages opening KaraScore with `?v=<id>&title=<title>`.
+- **Task ID:** `G3`
+- **Expected Result:** Gate 3 end-to-end Desktop verification of full scored karaoke flow across Exact and Vocal Performance modes (YouTube Search -> Extension button -> KaraScore auto-launch & scoring).
 - **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
+- `extension/content.js`
+- `extension/manifest.json`
+- `extension/popup.html`
+- `extension/popup.js`
+- `extension/styles.css`
 - `public/songs/demo-ballad.json`
 - `public/songs/index.json`
 - `src/App.tsx`
@@ -54,7 +59,7 @@ Last Updated: 2026-11-24
 ## Phase 3 — Iterative Build
 - [x] **`T3.1`**: Implement GPU-accelerated Pitch Track visualizer component strictly below video, Latency Offset Slider, and Result Modal with 4-metric breakdown.
 - [x] **`T3.2`**: Implement static song cache index, URL query launch (`?v=&title=`), mobile paste/search UI, and URL parsing tests.
-- [ ] **`T3.3`**: Implement Companion Chrome Extension (Manifest V3 in `extension/`) injecting `"🎤 Hát chấm điểm"` launch button on YouTube search & watch pages.
+- [x] **`T3.3`**: Implement Companion Chrome Extension (Manifest V3 in `extension/`) injecting `"🎤 Hát chấm điểm"` launch button on YouTube search & watch pages.
 - [ ] **`G3`**: Gate 3 — End-to-end verification of full scored karaoke flow across Exact and Smart Vocal modes.
 
 ## Phase 4 — Polish & Release
