@@ -107,14 +107,14 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
   return (
     <div className="w-full space-y-2 select-none">
       {/* Live Vocal HUD Bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs">
-        <div className="flex items-center gap-3">
-          <span className="text-zinc-500 font-semibold uppercase text-[10px] tracking-wider">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className="text-zinc-500 font-semibold uppercase text-[10px] tracking-wider shrink-0">
             {mode === 'exact' ? '🎯 Tier 1: Exact Melody' : '✨ Tier 2: Vocal Performance'}
           </span>
-          <div className="flex items-center gap-1.5 font-mono">
-            <span className="text-zinc-400 text-[11px]">Nốt:</span>
-            <span className="font-bold text-zinc-100 min-w-8">
+          <div className="flex items-center gap-1 font-mono">
+            <span className="text-zinc-400 text-[10px] sm:text-[11px]">Nốt:</span>
+            <span className="font-bold text-zinc-100 min-w-7 text-[11px] sm:text-xs">
               {pitch.noteName ? (
                 <span className={isPerfect ? 'text-emerald-400' : isInTune ? 'text-amber-400' : 'text-cyan-300'}>
                   {pitch.noteName}
@@ -125,16 +125,16 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 font-mono">
+          <div className="hidden md:flex items-center gap-1 font-mono">
             <span className="text-zinc-400 text-[11px]">Hz:</span>
-            <span className="text-zinc-300 min-w-16">
+            <span className="text-zinc-300 min-w-14 text-xs">
               {pitch.hz ? `${pitch.hz.toFixed(1)} Hz` : '—'}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 font-mono">
-            <span className="text-zinc-400 text-[11px]">Độ lệch:</span>
-            <span className="min-w-12">
+          <div className="flex items-center gap-1 font-mono">
+            <span className="text-zinc-400 text-[10px] sm:text-[11px]">Độ lệch:</span>
+            <span className="min-w-10 text-[11px] sm:text-xs">
               {centsDelta !== null ? (
                 <span
                   className={`font-semibold ${
@@ -155,11 +155,11 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+          <div className="flex items-center gap-1">
             <span className="text-[10px] uppercase font-semibold text-zinc-500">Combo</span>
             <span
-              className={`font-black text-sm px-2 py-0.5 rounded font-mono ${
+              className={`font-black text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 rounded font-mono ${
                 score.combo > 0
                   ? 'bg-amber-950/70 text-amber-400 border border-amber-800'
                   : 'bg-zinc-800 text-zinc-500'
@@ -169,7 +169,7 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
             </span>
           </div>
           {playerState !== 'PLAYING' && (
-            <span className="text-[10px] text-zinc-500 hidden md:inline">
+            <span className="text-[10px] text-zinc-500 hidden sm:inline">
               (Tạm dừng)
             </span>
           )}
@@ -177,7 +177,7 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
       </div>
 
       {/* Main Pitch Track Lane (Strictly GPU-composited CSS transforms, ZERO canvas redraw) */}
-      <div className="relative w-full h-44 sm:h-52 bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 rounded-xl border border-zinc-800 overflow-hidden shadow-inner">
+      <div className="relative w-full h-36 sm:h-48 bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 rounded-xl border border-zinc-800 overflow-hidden shadow-inner">
         {/* Horizontal Pitch Reference Grid Lines */}
         {REFERENCE_NOTES.map(({ midi, label }) => {
           const yPct = ((MAX_MIDI - midi) / MIDI_SPAN) * 100;

@@ -1,4 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  applyJudgePresentation,
+  type KaraScoreSettings,
+} from '../services/partySettings';
 import type { ScoreRating, ScoreSnapshot, ScoringMode } from '../types/karaoke';
 
 export interface ResultModalProps {
@@ -8,6 +12,7 @@ export interface ResultModalProps {
   score: ScoreSnapshot;
   mode: ScoringMode;
   songTitle?: string;
+  settings?: KaraScoreSettings;
 }
 
 function getRatingBadgeDetails(rating: ScoreRating) {
@@ -51,26 +56,44 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   score,
   mode,
   songTitle,
+  settings,
 }) => {
+  const [remarkSeed, setRemarkSeed] = useState<number>(0);
+
   if (!isOpen) return null;
 
-  const ratingDetails = getRatingBadgeDetails(score.rating);
+  const presentation = settings
+    ? applyJudgePresentation(score.score, settings, { seed: remarkSeed })
+    : {
+        displayScore: score.score,
+        displayRating: score.rating,
+        judgeLabel: 'Chuẩn xác',
+        remark: getRatingBadgeDetails(score.rating).sub,
+      };
+
+  const ratingDetails = getRatingBadgeDetails(presentation.displayRating);
   const { breakdown } = score;
+  const isLenientOrStrict = settings && (settings.judgeMode === 'lenient' || settings.judgeMode === 'strict');
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="result-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
     >
-      <div className="relative w-full max-w-lg rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-6 text-zinc-100 space-y-6">
+      <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-5 sm:p-6 text-zinc-100 space-y-5 sm:space-y-6">
         {/* Header */}
         <div className="text-center space-y-1">
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
             <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
               {mode === 'exact' ? 'Tier 1: Exact Melody' : 'Tier 2: Vocal Performance'}
             </span>
+            {settings && settings.judgeMode !== 'standard' && (
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800">
+                {presentation.judgeLabel}
+              </span>
+            )}
           </div>
           <h2 id="result-modal-title" className="text-2xl font-black tracking-tight text-white">
             Kết Quả Hát Karaoke
@@ -90,23 +113,41 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         <div className="flex flex-col items-center justify-center p-5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-3">
           <div className="flex items-baseline gap-2">
             <span className="text-6xl font-black tracking-tighter text-emerald-400">
-              {score.score}
+              {presentation.displayScore}
             </span>
             <span className="text-lg text-zinc-500 font-bold">/ 100</span>
           </div>
 
+          {isLenientOrStrict && (
+            <div className="text-xs text-zinc-400 font-mono">
+              Điểm gốc: <span className="text-zinc-200 font-bold">{score.score}</span> • {presentation.judgeLabel}
+            </div>
+          )}
+
           <div
             className={`px-4 py-1.5 rounded-xl border-2 font-black text-xl tracking-wide flex items-center gap-2 ${ratingDetails.badgeClass}`}
           >
-            <span>{score.rating}</span>
+            <span>{presentation.displayRating}</span>
             <span className="text-sm font-semibold border-l border-current/30 pl-2">
               {ratingDetails.label}
             </span>
           </div>
 
-          <p className="text-xs text-zinc-400 text-center max-w-xs">
-            {ratingDetails.sub}
-          </p>
+          {/* Remark bubble */}
+          <div className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl p-3 text-center space-y-1.5">
+            <p className="text-xs text-zinc-200 italic leading-relaxed">
+              &ldquo;{presentation.remark}&rdquo;
+            </p>
+            {settings?.enableFunRemarks && (
+              <button
+                type="button"
+                onClick={() => setRemarkSeed((s) => s + 1)}
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 transition-colors font-medium cursor-pointer"
+              >
+                🎲 Đổi lời nhận xét
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-6 pt-2 text-xs border-t border-zinc-800/80 w-full justify-center">
             <div className="text-center">

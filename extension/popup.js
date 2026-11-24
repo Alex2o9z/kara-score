@@ -14,6 +14,7 @@
 
   const radioCards = document.querySelectorAll('.radio-card');
   const customInput = document.getElementById('customUrlInput');
+  const debugLogToggle = document.getElementById('debugLogToggle');
   const statusMsg = document.getElementById('statusMsg');
 
   let statusTimeout = null;
@@ -41,6 +42,16 @@
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
       chrome.storage.sync.set({ targetBaseUrl: url }, () => {
         showStatus('✓ Đã lưu cài đặt');
+      });
+    } else {
+      showStatus('✓ Đã lưu (cục bộ)');
+    }
+  }
+
+  function saveDebugLog(enabled) {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+      chrome.storage.sync.set({ debugLog: enabled }, () => {
+        showStatus(enabled ? '✓ Đã bật Debug Log' : '✓ Đã tắt Debug Log');
       });
     } else {
       showStatus('✓ Đã lưu (cục bộ)');
@@ -75,17 +86,20 @@
     }
   }
 
-  // Load saved preference
+  // Load saved preferences
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-    chrome.storage.sync.get(['targetBaseUrl'], (result) => {
+    chrome.storage.sync.get(['targetBaseUrl', 'debugLog'], (result) => {
       const activeUrl = result && result.targetBaseUrl ? result.targetBaseUrl : DEFAULT_TARGET;
       setSelectedCard(activeUrl);
+      if (debugLogToggle && result && typeof result.debugLog === 'boolean') {
+        debugLogToggle.checked = result.debugLog;
+      }
     });
   } else {
     setSelectedCard(DEFAULT_TARGET);
   }
 
-  // Event handlers
+  // Event handlers for target URL cards
   radioCards.forEach((card) => {
     card.addEventListener('click', (e) => {
       const cardUrl = card.dataset.url;
@@ -102,7 +116,7 @@
         if (customInput) {
           customInput.style.display = 'block';
           customInput.focus();
-          if (customInput.value.trim()) {
+          if (customInput.value) {
             saveTargetUrl(customInput.value.trim());
           }
         }
@@ -115,22 +129,22 @@
     });
   });
 
+  // Debounced input handler for custom URL
+  let customInputTimeout = null;
   if (customInput) {
-    customInput.addEventListener('change', () => {
-      const val = customInput.value.trim();
-      if (val) {
+    customInput.addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      if (customInputTimeout) clearTimeout(customInputTimeout);
+      customInputTimeout = setTimeout(() => {
         saveTargetUrl(val);
-      }
+      }, 500);
     });
+  }
 
-    customInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const val = customInput.value.trim();
-        if (val) {
-          saveTargetUrl(val);
-        }
-      }
+  // Toggle handler for debug log
+  if (debugLogToggle) {
+    debugLogToggle.addEventListener('change', () => {
+      saveDebugLog(debugLogToggle.checked);
     });
   }
 })();

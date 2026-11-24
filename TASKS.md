@@ -3,37 +3,35 @@
 Last Updated: 2026-11-24
 
 ## 1. Last Completed Task
-- **Task ID:** `T3.3`
-- **Result:** Implemented lightweight Companion Chrome Extension (Manifest V3) in `extension/` (`manifest.json`, `content.js`, `styles.css`, `popup.html`, `popup.js`). Injects "🎤 Hát chấm điểm" watch page button and "🎤 Hát" search/grid card badges with idempotent SPA navigation handling (`yt-navigate-finish` + debounced `MutationObserver`), player pause trigger, and environment switcher popup (Production, Preview, Localhost).
+- **Task ID:** `T4.2`
+- **Result:** Implemented Party Settings, Judge Modes (Standard, Lenient +8%, Strict -10%, Fun), Vietnamese witty Fun Remarks, Auto-Mic toggle, Debug HUD accessibility (via DEV, ?debug=1, or Settings toggle), and YouTube Companion Extension polish with multi-layered icons, native action-bar inline injection (`40px` pill matching `ytSpecButtonShapeNext*`), and debugLog diagnostics.
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
-- **Evidence:** `node --check` passed for all extension scripts, `manifest.json` is valid MV3 JSON, and `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (10 files, 102 tests), and `build`.
-- **Attempted Solutions:** Kept extension files isolated from web build pipeline (`tsconfig.json`/`eslint.config.js`) to guarantee zero interference while providing clean cross-tab launching.
+- **Evidence:** `npm run verify` passed code 0 cleanly across `typecheck` (`tsc --noEmit`), `lint` (`eslint .`), `test` (`vitest run` with 11 test suites, 118 passed), and `build` (`vite build`). Extension syntax check (`node --check`) and `manifest.json` passed with zero errors.
+- **Attempted Solutions:** Used pure presentation layer in `partySettings.ts` guaranteeing raw telemetry integrity in `DebugHUD` and diagnostic exports while offering party-friendly scoring modes.
 
 ## 3. First Action Next Session
-- **Task ID:** `G3`
-- **Expected Result:** Gate 3 end-to-end Desktop verification of full scored karaoke flow across Exact and Vocal Performance modes (YouTube Search -> Extension button -> KaraScore auto-launch & scoring).
+- **Task ID:** `G4`
+- **Expected Result:** Gate 4 — Production release audit and mobile HTTPS browser validation via Cloudflare Pages preview URL.
 - **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
 - `extension/content.js`
-- `extension/manifest.json`
+- `extension/icons/icon16.png`
+- `extension/icons/icon48.png`
+- `extension/icons/icon128.png`
 - `extension/popup.html`
 - `extension/popup.js`
 - `extension/styles.css`
-- `public/songs/demo-ballad.json`
-- `public/songs/index.json`
 - `src/App.tsx`
+- `src/components/DebugHUD.tsx`
 - `src/components/LatencyControl.tsx`
 - `src/components/PitchTrack.tsx`
 - `src/components/ResultModal.tsx`
-- `src/engines/ScoringEngine.test.ts`
-- `src/engines/ScoringEngine.ts`
-- `src/services/songCatalog.test.ts`
-- `src/services/songCatalog.ts`
-- `vite.config.ts`
+- `src/services/partySettings.test.ts`
+- `src/services/partySettings.ts`
 - `TASKS.md`
 
 ---
@@ -63,5 +61,6 @@ Last Updated: 2026-11-24
 - [ ] **`G3`**: Gate 3 — End-to-end verification of full scored karaoke flow across Exact and Smart Vocal modes.
 
 ## Phase 4 — Polish & Release
-- [ ] **`T4.1`**: Implement Free Pitch Mode polish, error recovery UI for YouTube embed restrictions, and UX refinements.
+- [x] **`T4.1`**: Implement Free Pitch Mode polish, error recovery UI for YouTube embed restrictions, and UX refinements.
+- [x] **`T4.2`**: Implement Party Settings, Judge Modes, Fun Remarks, Debug HUD toggles, and YouTube Companion Extension action-bar integration with custom icons.
 - [ ] **`G4`**: Gate 4 — Production release audit and mobile HTTPS browser validation via Cloudflare Pages preview URL.

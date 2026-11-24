@@ -1,6 +1,6 @@
 /**
  * KaraScore Companion Chrome Extension - Content Script (MV3)
- * Injects "🎤 Hát chấm điểm" button on YouTube Watch and Search pages.
+ * Injects native-styled "🎤 Hát chấm điểm" button on YouTube Watch and Search pages.
  */
 
 (function () {
@@ -8,18 +8,34 @@
 
   const DEFAULT_TARGET_URL = 'https://kara-score.pages.dev';
   let targetBaseUrl = DEFAULT_TARGET_URL;
+  let isDebugLog = false;
 
-  // 1. Synchronize target base URL from extension storage
+  function log(...args) {
+    if (isDebugLog) {
+      console.log('[KaraScore]', ...args);
+    }
+  }
+
+  // 1. Synchronize target base URL and debugLog from extension storage
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-    chrome.storage.sync.get(['targetBaseUrl'], (result) => {
-      if (result && result.targetBaseUrl) {
-        targetBaseUrl = result.targetBaseUrl;
+    chrome.storage.sync.get(['targetBaseUrl', 'debugLog'], (result) => {
+      if (result) {
+        if (result.targetBaseUrl) targetBaseUrl = result.targetBaseUrl;
+        if (typeof result.debugLog === 'boolean') isDebugLog = result.debugLog;
+        log('Initialized settings from storage:', { targetBaseUrl, isDebugLog });
       }
     });
 
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'sync' && changes.targetBaseUrl) {
-        targetBaseUrl = changes.targetBaseUrl.newValue || DEFAULT_TARGET_URL;
+      if (area === 'sync') {
+        if (changes.targetBaseUrl) {
+          targetBaseUrl = changes.targetBaseUrl.newValue || DEFAULT_TARGET_URL;
+          log('Updated targetBaseUrl:', targetBaseUrl);
+        }
+        if (changes.debugLog) {
+          isDebugLog = Boolean(changes.debugLog.newValue);
+          log('Updated debugLog:', isDebugLog);
+        }
       }
     });
   }
@@ -54,9 +70,10 @@
       const videoEl = document.querySelector('video');
       if (videoEl && !videoEl.paused) {
         videoEl.pause();
+        log('Paused active YouTube player element');
       }
-    } catch {
-      // Safe fallback
+    } catch (err) {
+      log('Could not pause player:', err);
     }
   }
 
@@ -68,6 +85,7 @@
     if (cleanTitle) {
       url.searchParams.set('title', cleanTitle);
     }
+    log('Launching KaraScore URL:', url.toString());
     window.open(url.toString(), '_blank');
   }
 
@@ -81,32 +99,35 @@
     // Check if button is already injected
     const existing = document.querySelector('.karascore-watch-btn[data-karascore-injected="true"]');
     if (existing) {
-      // Update videoId in case of in-page SPA video switch
-      existing.dataset.videoId = videoId;
+      if (existing.dataset.videoId !== videoId) {
+        existing.dataset.videoId = videoId;
+        log('Updated existing watch button videoId to:', videoId);
+      }
       return;
     }
 
-    // Target YouTube's primary action bar so it sits inline with Like/Share buttons
+    // Target YouTube's native action bar container
     const actionsContainer =
-      document.querySelector('ytd-watch-metadata #actions-inner #top-level-buttons-computed') ||
       document.querySelector('ytd-watch-metadata #actions #top-level-buttons-computed') ||
-      document.querySelector('#actions-inner #top-level-buttons-computed') ||
+      document.querySelector('ytd-watch-metadata #actions-inner #top-level-buttons-computed') ||
       document.querySelector('#actions #top-level-buttons-computed') ||
-      document.querySelector('#top-level-buttons-computed') ||
-      document.querySelector('ytd-watch-metadata #actions-inner ytd-menu-renderer') ||
-      document.querySelector('ytd-watch-metadata #actions-inner') ||
-      document.querySelector('ytd-watch-metadata #actions');
+      document.querySelector('#actions-inner #top-level-buttons-computed') ||
+      document.querySelector('#top-level-buttons-computed');
 
-    if (!actionsContainer) return;
+    if (!actionsContainer) {
+      log('Watch page actions container not found yet');
+      return;
+    }
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'karascore-watch-btn';
+    btn.className =
+      'karascore-watch-btn ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM';
     btn.dataset.karascoreInjected = 'true';
     btn.dataset.videoId = videoId;
     btn.title = 'Mở bài hát này trên KaraScore để hát karaoke và chấm điểm trực tiếp';
     btn.innerHTML = `
-      <svg viewBox="0 0 24 24">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
       </svg>
@@ -129,11 +150,17 @@
       launchKaraScore(currentVideoId, videoTitle);
     });
 
-    // Insert inline directly inside the action bar
-    if (actionsContainer.id === 'top-level-buttons-computed') {
-      actionsContainer.insertBefore(btn, actionsContainer.firstChild);
+    // Inject as a direct sibling to yt-button-view-model inside #top-level-buttons-computed
+    const siblingBtn =
+      actionsContainer.querySelector('yt-button-view-model') ||
+      actionsContainer.firstElementChild;
+
+    if (siblingBtn) {
+      actionsContainer.insertBefore(btn, siblingBtn);
+      log('Inserted watch button before native sibling:', siblingBtn.tagName);
     } else {
       actionsContainer.appendChild(btn);
+      log('Appended watch button to actions container');
     }
   }
 
@@ -147,6 +174,8 @@
     ];
 
     const cards = document.querySelectorAll(cardSelectors.join(','));
+    let badgeCount = 0;
+
     cards.forEach((card) => {
       if (card.querySelector('.karascore-card-badge[data-karascore-injected="true"]')) {
         return;
@@ -179,7 +208,7 @@
       badge.dataset.karascoreInjected = 'true';
       badge.title = 'Hát chấm điểm bài này trên KaraScore';
       badge.innerHTML = `
-        <svg viewBox="0 0 24 24">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
         </svg>
@@ -196,7 +225,12 @@
       });
 
       metaContainer.appendChild(badge);
+      badgeCount++;
     });
+
+    if (badgeCount > 0) {
+      log(`Injected ${badgeCount} card badges`);
+    }
   }
 
   // 4. Combined idempotent execution
@@ -210,7 +244,7 @@
 
   // Listen to YouTube SPA navigation finish event
   window.addEventListener('yt-navigate-finish', () => {
-    // Small delay to allow YouTube Polymer DOM elements to settle
+    log('YouTube SPA navigation finished:', window.location.href);
     setTimeout(runInjection, 150);
   });
 

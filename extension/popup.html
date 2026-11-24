@@ -122,6 +122,71 @@
       outline: none;
       border-color: #10b981;
     }
+    .toggle-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .toggle-info {
+      flex: 1;
+    }
+    .toggle-label {
+      font-weight: 600;
+      color: #f4f4f5;
+      font-size: 12px;
+    }
+    .toggle-desc {
+      font-size: 10px;
+      color: #a1a1aa;
+      margin-top: 2px;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #3f3f46;
+      transition: .2s;
+      border-radius: 20px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #10b981;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(16px);
+    }
     .status-msg {
       font-size: 11px;
       color: #34d399;
@@ -185,6 +250,18 @@
       </div>
     </label>
   </div>
+
+  <div class="section-title">Chẩn đoán (Diagnostics)</div>
+  <label class="toggle-card" for="debugLogToggle">
+    <div class="toggle-info">
+      <div class="toggle-label">Ghi log Console (Debug Log)</div>
+      <div class="toggle-desc">Hiện log [KaraScore] trong Console khi mở YouTube</div>
+    </div>
+    <div class="toggle-switch">
+      <input type="checkbox" id="debugLogToggle">
+      <span class="toggle-slider"></span>
+    </div>
+  </label>
 
   <div id="statusMsg" class="status-msg">✓ Đã lưu cài đặt</div>
 

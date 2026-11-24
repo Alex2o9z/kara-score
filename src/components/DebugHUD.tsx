@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { AudioPermissionState } from '../engines/AudioEngine';
+import type { JudgeMode } from '../services/partySettings';
 import type { PlayerState, ScoreSnapshot, SmoothedPitchFrame } from '../types/karaoke';
 import type { YouTubePlayerError } from '../services/YouTubePlayerAdapter';
 
@@ -15,13 +16,20 @@ export interface DebugHUDProps {
   ytError: YouTubePlayerError | null;
   score: ScoreSnapshot;
   activeSongTitle?: string | null;
+  showDebugHud?: boolean;
+  judgeMode?: JudgeMode;
 }
 
 export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
-  // Guardrail Rule 8: Strictly render NOTHING in production builds
-  if (!import.meta.env.DEV) {
+  // Accessible in DEV, when enabled via Settings, or via ?debug=1 URL parameter
+  const isDebugUrl =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('debug') === '1';
+  const shouldRender = Boolean(import.meta.env.DEV || props.showDebugHud || isDebugUrl);
+
+  if (!shouldRender) {
     return null;
   }
 
@@ -30,7 +38,7 @@ export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
       timestamp: new Date().toISOString(),
       app: 'KaraScore',
       version: 'MVP v1',
-      environment: 'development',
+      environment: import.meta.env.DEV ? 'development' : 'production',
       audio: {
         micStatus: props.micStatus,
         micError: props.micError,
@@ -52,7 +60,8 @@ export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
       },
       scoring: {
         mode: props.score.mode,
-        score: props.score.score,
+        rawScore: props.score.score,
+        judgeMode: props.judgeMode || 'standard',
         rating: props.score.rating,
         accuracyPct: props.score.accuracyPct,
         combo: props.score.combo,
@@ -186,9 +195,16 @@ export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
           <section className="bg-zinc-900/50 rounded-lg p-2.5 border border-zinc-800/80 space-y-1.5">
             <div className="flex items-center justify-between text-zinc-400 font-semibold border-b border-zinc-800 pb-1">
               <span>3. SCORING & SMART VOCAL</span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-950/80 text-indigo-300 border border-indigo-800">
-                {props.score.mode.toUpperCase()}
-              </span>
+              <div className="flex items-center gap-1">
+                {props.judgeMode && (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] bg-purple-950/80 text-purple-300 border border-purple-800">
+                    JUDGE: {props.judgeMode.toUpperCase()}
+                  </span>
+                )}
+                <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-950/80 text-indigo-300 border border-indigo-800">
+                  {props.score.mode.toUpperCase()}
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-300">
               <div>
