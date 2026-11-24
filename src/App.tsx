@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DebugHUD } from './components/DebugHUD';
+import { LatencyControl } from './components/LatencyControl';
+import { PitchTrack } from './components/PitchTrack';
+import { ResultModal } from './components/ResultModal';
 import { useKaraokeSession } from './hooks/useKaraokeSession';
 import { extractYouTubeVideoId } from './services/youtubeUrlParser';
 import type { SongData } from './types/karaoke';
@@ -23,6 +26,7 @@ export function App() {
     startMic,
     stopMic,
     resetScore,
+    setLatencyOffsetMs,
     play,
     pause,
     seekTo,
@@ -31,6 +35,27 @@ export function App() {
   const [customInput, setCustomInput] = useState<string>('');
   const [inputError, setInputError] = useState<string | null>(null);
   const [isLoadingSample, setIsLoadingSample] = useState<boolean>(false);
+  const [isManualResultOpen, setIsManualResultOpen] = useState<boolean>(false);
+  const [hasDismissedEndedResult, setHasDismissedEndedResult] = useState<boolean>(false);
+
+  // Restore hardware latency calibration from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('karascore_latency_offset_ms');
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!Number.isNaN(parsed) && parsed >= -300 && parsed <= 300) {
+          setLatencyOffsetMs(parsed);
+        }
+      }
+    } catch {
+      // Safe fallback
+    }
+  }, [setLatencyOffsetMs]);
+
+  // Derive ResultModal visibility: opens on ENDED (unless dismissed) or via manual trigger
+  const isResultOpen =
+    isManualResultOpen || (playerState === 'ENDED' && !hasDismissedEndedResult);
 
   const handleLoadSampleSong = async () => {
     try {
@@ -61,6 +86,21 @@ export function App() {
     loadVideo(videoId, null);
   };
 
+  const handleReplay = () => {
+    setHasDismissedEndedResult(false);
+    setIsManualResultOpen(false);
+    resetScore();
+    seekTo(0);
+    play();
+  };
+
+  const handleCloseResult = () => {
+    setIsManualResultOpen(false);
+    if (playerState === 'ENDED') {
+      setHasDismissedEndedResult(true);
+    }
+  };
+
   const getRatingColor = (rating: string) => {
     switch (rating) {
       case 'S':
@@ -85,7 +125,7 @@ export function App() {
                 KaraScore
               </h1>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
-                Walking Skeleton v1
+                Phase 3A UI
               </span>
             </div>
             <p className="text-zinc-400 text-xs md:text-sm mt-0.5">
@@ -149,7 +189,24 @@ export function App() {
           </div>
         )}
 
-        {/* Real-time Status Card (Strictly Below Video) */}
+        {/* Pitch Track Visualizer (Strictly positioned BELOW the YouTube Player) */}
+        <PitchTrack
+          mode={mode}
+          activeSong={activeSong}
+          interpolatedTimeMs={interpolatedTimeMs}
+          latencyOffsetMs={latencyOffsetMs}
+          pitch={pitch}
+          score={score}
+          playerState={playerState}
+        />
+
+        {/* Latency Offset Calibration Bar */}
+        <LatencyControl
+          latencyOffsetMs={latencyOffsetMs}
+          setLatencyOffsetMs={setLatencyOffsetMs}
+        />
+
+        {/* Real-time Status Card (Strictly Below Video & PitchTrack) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-900/70 p-4 rounded-xl border border-zinc-800 text-center">
           <div className="space-y-0.5">
             <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Chế độ chấm</div>
@@ -214,7 +271,7 @@ export function App() {
               </button>
             </div>
 
-            {/* Mic Controls */}
+            {/* Mic Controls & Score Actions */}
             <div className="flex items-center gap-2">
               {micStatus !== 'running' ? (
                 <button
@@ -240,6 +297,14 @@ export function App() {
                 className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-zinc-300 font-medium text-xs transition-colors cursor-pointer border border-zinc-700"
               >
                 Reset Score
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsManualResultOpen(true)}
+                className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs transition-all cursor-pointer shadow-sm"
+              >
+                🏆 Xem kết quả
               </button>
             </div>
           </div>
@@ -288,6 +353,16 @@ export function App() {
           </div>
         </div>
       </div>
+
+      {/* Post-song Summary Modal */}
+      <ResultModal
+        isOpen={isResultOpen}
+        onClose={handleCloseResult}
+        onReplay={handleReplay}
+        score={score}
+        mode={mode}
+        songTitle={activeSong?.title}
+      />
 
       {/* DEV-Only Telemetry Overlay HUD (Strictly hidden in production builds) */}
       <DebugHUD

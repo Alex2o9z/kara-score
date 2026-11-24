@@ -3,25 +3,25 @@
 Last Updated: 2026-11-23
 
 ## 1. Last Completed Task
-- **Task ID:** `T2.4b`
-- **Result:** Completed Walking Skeleton integration in `src/App.tsx` wired to `useKaraokeSession` and `DebugHUD`. Fixed YouTube player container black screen / UNSTARTED state by implementing child mount container isolation, pending video queue, explicit 100% dimensions, and `enablejsapi: 1` parameter.
+- **Task ID:** `T3.1`
+- **Result:** Implemented `PitchTrack` (DOM/GPU-accelerated CSS `transform: translate3d(...)` visualizer covering vocal MIDI range A2–A5 with Tier 1 scrolling target notes + Tier 2 live semitone lane + live cursor HUD), `LatencyControl` (-300ms to +300ms slider with 0ms quick reset & localStorage persistence), and `ResultModal` (auto-opens on ENDED or manual trigger with score, tier badge, max combo, 4 Smart Vocal metrics breakdown, exact accuracy %, and replay action). Integrated cleanly into `src/App.tsx`.
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
 - **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (9 files, 83 tests), and `build`.
-- **Attempted Solutions:** Isolated YouTube player DOM replacement into dedicated child mount node, added pending video queue in `YouTubePlayerAdapter`, and enabled JS API postMessage bridge.
+- **Attempted Solutions:** Used derived state pattern for `ResultModal` lifecycle avoiding cascading render lint violations; GPU-composited CSS transforms for 60fps rendering without canvas redraws.
 
 ## 3. First Action Next Session
-- **Task ID:** `G2`
-- **Expected Result:** Execute Gate 2 manual real-device validation on desktop hardware with wired headphones on `http://localhost:5173` across all 5 acceptance criteria (mic capture, YouTube sync, 4 Smart Vocal metrics, Tier 1 sample song, embed error recovery).
+- **Task ID:** `T3.2`
+- **Expected Result:** Implement static song cache index (`public/songs/index.json`), URL query parameter launch (`?v=<id>&title=<title>`), mobile paste/search UI, and song lookup / URL parsing tests.
 - **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
 - `src/App.tsx`
-- `src/components/DebugHUD.tsx`
-- `src/hooks/useKaraokeSession.ts`
-- `src/services/YouTubePlayerAdapter.ts`
+- `src/components/LatencyControl.tsx`
+- `src/components/PitchTrack.tsx`
+- `src/components/ResultModal.tsx`
 - `TASKS.md`
 
 ---
@@ -45,7 +45,7 @@ Last Updated: 2026-11-23
 - [ ] **`G2`**: Gate 2 — End-to-end walking skeleton validation on desktop hardware with wired headphones.
 
 ## Phase 3 — Iterative Build
-- [ ] **`T3.1`**: Implement GPU-accelerated Pitch Track visualizer component strictly below video, Latency Offset Slider, and Result Modal with 4-metric breakdown.
+- [x] **`T3.1`**: Implement GPU-accelerated Pitch Track visualizer component strictly below video, Latency Offset Slider, and Result Modal with 4-metric breakdown.
 - [ ] **`T3.2`**: Implement static song cache index, URL query launch (`?v=&title=`), mobile paste/search UI, and URL parsing tests.
 - [ ] **`T3.3`**: Implement Companion Chrome Extension (Manifest V3 in `extension/`) injecting `"🎤 Hát chấm điểm"` launch button on YouTube search & watch pages.
 - [ ] **`G3`**: Gate 3 — End-to-end verification of full scored karaoke flow across Exact and Smart Vocal modes.
