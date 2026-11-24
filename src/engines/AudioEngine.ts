@@ -15,6 +15,7 @@ export class AudioEngine {
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private analyserNode: AnalyserNode | null = null;
   private timeDomainBuffer: Float32Array<ArrayBuffer> | null = null;
+  private onTrackEndedHandler: (() => void) | null = null;
 
   constructor(optionsOrFftSize: number | AudioEngineOptions = 2048) {
     if (typeof optionsOrFftSize === 'number') {
@@ -44,7 +45,7 @@ export class AudioEngine {
     return this.lastError;
   }
 
-  public async start(): Promise<void> {
+  public async start(onTrackEnded?: () => void): Promise<void> {
     // If already running, ensure resumed and exit cleanly
     if (this.permissionState === 'running' && this.audioContext) {
       if (this.audioContext.state === 'suspended') {
@@ -60,6 +61,7 @@ export class AudioEngine {
     this.isStarting = true;
     this.permissionState = 'starting';
     this.lastError = null;
+    this.onTrackEndedHandler = onTrackEnded ?? null;
 
     try {
       if (
@@ -117,6 +119,13 @@ export class AudioEngine {
       this.sourceNode = source;
       this.analyserNode = analyser;
       this.timeDomainBuffer = buffer;
+
+      // Attach ended listener on the active audio track for OS/call interruption detection
+      const tracks = typeof stream.getAudioTracks === 'function' ? stream.getAudioTracks() : stream.getTracks();
+      const activeTrack = tracks[0] ?? null;
+      if (activeTrack && typeof activeTrack.addEventListener === 'function' && this.onTrackEndedHandler) {
+        activeTrack.addEventListener('ended', this.onTrackEndedHandler);
+      }
 
       this.permissionState = 'running';
       this.lastError = null;
@@ -188,6 +197,9 @@ export class AudioEngine {
       try {
         const tracks = this.mediaStream.getTracks();
         for (const track of tracks) {
+          if (this.onTrackEndedHandler && typeof track.removeEventListener === 'function') {
+            track.removeEventListener('ended', this.onTrackEndedHandler);
+          }
           track.stop();
         }
       } catch {
@@ -195,6 +207,7 @@ export class AudioEngine {
       }
       this.mediaStream = null;
     }
+    this.onTrackEndedHandler = null;
 
     if (this.audioContext) {
       try {

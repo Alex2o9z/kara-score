@@ -25,6 +25,7 @@ export interface KaraokeSessionHook {
   latencyOffsetMs: number;
   micStatus: AudioPermissionState;
   micError: string | null;
+  micInterrupted: boolean;
   ytError: YouTubePlayerError | null;
   pitch: SmoothedPitchFrame;
   score: ScoreSnapshot;
@@ -93,6 +94,7 @@ export function useKaraokeSession(): KaraokeSessionHook {
   const [latencyOffsetMs, setLatencyOffsetMsState] = useState<number>(0);
   const [micStatus, setMicStatus] = useState<AudioPermissionState>('idle');
   const [micError, setMicError] = useState<string | null>(null);
+  const [micInterrupted, setMicInterrupted] = useState<boolean>(false);
   const [ytError, setYtError] = useState<YouTubePlayerError | null>(null);
   const [pitch, setPitch] = useState<SmoothedPitchFrame>(INITIAL_PITCH);
   const [score, setScore] = useState<ScoreSnapshot>(INITIAL_SCORE);
@@ -178,12 +180,38 @@ export function useKaraokeSession(): KaraokeSessionHook {
     }
   }, []);
 
+  // Handle OS / incoming call microphone track interruption
+  const handleTrackEnded = useCallback(() => {
+    void audioEngineRef.current.stop();
+    setMicStatus('idle');
+    setMicInterrupted(true);
+    setPitch(INITIAL_PITCH);
+  }, []);
+
+  // Listen to document.visibilitychange: clean stop when app goes to background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && audioEngineRef.current.isRunning()) {
+        void audioEngineRef.current.stop();
+        setMicStatus('idle');
+        setMicInterrupted(true);
+        setPitch(INITIAL_PITCH);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // Microphone lifecycle controls
   const startMic = useCallback(async () => {
     try {
+      setMicInterrupted(false);
       setMicStatus('starting');
       setMicError(null);
-      await audioEngineRef.current.start();
+      await audioEngineRef.current.start(handleTrackEnded);
       setMicStatus(audioEngineRef.current.getPermissionState());
       setMicError(audioEngineRef.current.getLastError());
       setSampleRate(audioEngineRef.current.getSampleRate());
@@ -191,9 +219,10 @@ export function useKaraokeSession(): KaraokeSessionHook {
       setMicStatus(audioEngineRef.current.getPermissionState());
       setMicError(audioEngineRef.current.getLastError() || (err as Error).message);
     }
-  }, []);
+  }, [handleTrackEnded]);
 
   const stopMic = useCallback(async () => {
+    setMicInterrupted(false);
     await audioEngineRef.current.stop();
     setMicStatus('idle');
     setMicError(null);
@@ -285,6 +314,7 @@ export function useKaraokeSession(): KaraokeSessionHook {
     latencyOffsetMs,
     micStatus,
     micError,
+    micInterrupted,
     ytError,
     pitch,
     score,
