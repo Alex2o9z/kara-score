@@ -255,11 +255,11 @@ describe('ScoringEngine', () => {
       expect(snap.rating).toBe('C');
     });
 
-    it('anti-cheat 1: minimal participation (2 ticks out of 100) produces low coverage and low score', () => {
+    it('anti-cheat 1: brief speech burst (~3% vocal activity) yields a realistic low score (<= 15 pts)', () => {
       const engine = new ScoringEngine('smart');
 
-      // 98 silence ticks
-      for (let i = 0; i < 98; i++) {
+      // 97 silence ticks
+      for (let i = 0; i < 97; i++) {
         engine.tick({
           interpolatedTimeMs: i * 50,
           latencyOffsetMs: 0,
@@ -268,8 +268,8 @@ describe('ScoringEngine', () => {
         });
       }
 
-      // 2 perfect singing ticks
-      for (let i = 98; i < 100; i++) {
+      // 3 brief speech / vocal burst ticks (3% of 100 ticks)
+      for (let i = 97; i < 100; i++) {
         engine.tick({
           interpolatedTimeMs: i * 50,
           latencyOffsetMs: 0,
@@ -280,13 +280,14 @@ describe('ScoringEngine', () => {
 
       const snap = engine.getSnapshot();
       expect(snap.activeTicks).toBe(100);
-      expect(snap.validVocalTicks).toBe(2);
-      // Coverage = min(100, (2 / 100) / 0.45 * 100) ≈ 4.4%
-      expect(snap.breakdown.activeVocalCoverage).toBeLessThan(10);
-      // Melodic variety = 0 (only 2 ticks on 1 note, requires >= 3)
+      expect(snap.validVocalTicks).toBe(3);
+      // Coverage = min(100, (3 / 100) / 0.40 * 100) = 7.5%
+      expect(snap.breakdown.activeVocalCoverage).toBe(7.5);
+      // Melodic variety = 0 (only 3 ticks on 1 note, requires > 1 distinct note with >= 3 ticks)
       expect(snap.breakdown.melodicVariety).toBe(0);
-      // Total score must be low (< 60, resulting in Tier C)
-      expect(snap.score).toBeLessThan(60);
+      // Gated by continuous coverageFactor: score must be realistically low (<= 15 pts, ~3 pts), Tier C
+      expect(snap.score).toBeLessThanOrEqual(15);
+      expect(snap.score).toBeGreaterThan(0);
       expect(snap.rating).toBe('C');
     });
 

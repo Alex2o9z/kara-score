@@ -110,7 +110,7 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
       <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs">
         <div className="flex items-center gap-3">
           <span className="text-zinc-500 font-semibold uppercase text-[10px] tracking-wider">
-            {mode === 'exact' ? '🎯 Tier 1: Exact Melody' : '✨ Tier 2: Smart Vocal'}
+            {mode === 'exact' ? '🎯 Tier 1: Exact Melody' : '✨ Tier 2: Vocal Performance'}
           </span>
           <div className="flex items-center gap-1.5 font-mono">
             <span className="text-zinc-400 text-[11px]">Nốt:</span>

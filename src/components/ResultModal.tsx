@@ -69,17 +69,21 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2">
             <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
-              {mode === 'exact' ? 'Tier 1: Exact Melody' : 'Tier 2: Smart Vocal'}
+              {mode === 'exact' ? 'Tier 1: Exact Melody' : 'Tier 2: Vocal Performance'}
             </span>
           </div>
           <h2 id="result-modal-title" className="text-2xl font-black tracking-tight text-white">
             Kết Quả Hát Karaoke
           </h2>
-          {songTitle && (
+          {mode === 'smart' ? (
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              Đánh giá độ ổn định cao độ, độ chuẩn bán âm &amp; mức độ tham gia khi chưa có phổ nốt chuẩn.
+            </p>
+          ) : songTitle ? (
             <p className="text-xs text-zinc-400 truncate max-w-md mx-auto">
               {songTitle}
             </p>
-          )}
+          ) : null}
         </div>
 
         {/* Score & Rating Display */}
@@ -120,10 +124,10 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           </div>
         </div>
 
-        {/* 4 Smart Vocal Metrics Breakdown */}
+        {/* 4 Vocal Metrics Breakdown */}
         <div className="space-y-3">
           <div className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
-            <span>Chi tiết 4 tiêu chí Smart Vocal</span>
+            <span>Chi tiết 4 tiêu chí Vocal Performance</span>
             <span className="text-[10px] text-zinc-500 font-normal">Trọng số 100%</span>
           </div>
 

@@ -211,13 +211,17 @@ export function App() {
           <div className="space-y-0.5">
             <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Chế độ chấm</div>
             <div className="font-bold text-sm text-cyan-400">
-              {mode === 'exact' ? 'Tier 1: Exact Melody' : 'Tier 2: Smart Vocal'}
+              {mode === 'exact' ? 'Tier 1: Exact Melody' : 'Tier 2: Vocal Performance'}
             </div>
-            {activeSong && (
+            {mode === 'smart' ? (
+              <div className="text-[10px] text-zinc-400">
+                Độ ổn định, chuẩn bán âm &amp; độ phủ giọng
+              </div>
+            ) : activeSong ? (
               <div className="text-[10px] text-zinc-400 truncate max-w-full">
                 {activeSong.title}
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="space-y-0.5">
@@ -322,7 +326,7 @@ export function App() {
               type="submit"
               className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-semibold text-xs transition-colors cursor-pointer whitespace-nowrap"
             >
-              Load Video (Smart Mode)
+              Load Video (Vocal Performance)
             </button>
           </form>
 

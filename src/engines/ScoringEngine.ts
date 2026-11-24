@@ -29,8 +29,7 @@ export class ScoringEngine {
 
   // Breakdown accumulators
   private inTuneScoreSum = 0;
-  private sustainedRefMidi: number | null = null;
-  private sustainedTicks = 0;
+  private prevMidi: number | null = null;
   private stabilityClaritySum = 0;
   private noteTickCounts = new Map<number, number>();
 
@@ -81,8 +80,7 @@ export class ScoringEngine {
     this.maxCombo = 0;
 
     this.inTuneScoreSum = 0;
-    this.sustainedRefMidi = null;
-    this.sustainedTicks = 0;
+    this.prevMidi = null;
     this.stabilityClaritySum = 0;
     this.noteTickCounts.clear();
 
@@ -106,8 +104,7 @@ export class ScoringEngine {
     pitch: SmoothedPitchFrame;
     tickDurationMs?: number;
   }): ScoreSnapshot {
-    const { interpolatedTimeMs, latencyOffsetMs, playerState, pitch } = input;
-    const tickDurationMs = input.tickDurationMs ?? 50;
+    const { playerState, pitch } = input;
 
     // Hard Playback Gate: If not PLAYING, do NOT mutate accumulators or combo; return current snapshot with centsDelta: null
     if (playerState !== 'PLAYING') {
@@ -132,38 +129,26 @@ export class ScoringEngine {
         this.inTuneScoreSum += 50;
       }
 
-      // 2. Stability & Clarity
-      if (this.sustainedRefMidi === null) {
-        this.sustainedRefMidi = pitch.midi;
-        this.sustainedTicks = 1;
-      } else {
-        const diffFromRef = Math.abs(getCentsDiff(pitch.midi, this.sustainedRefMidi));
-        if (diffFromRef <= 35) {
-          this.sustainedTicks++;
-        } else {
-          this.sustainedRefMidi = pitch.midi;
-          this.sustainedTicks = 1;
-        }
+      // 2. Stability & Clarity (frame-to-frame F0 continuity + pitch clarity, no hard 150ms cutoff)
+      const clarityScore = Math.min(100, Math.max(0, pitch.clarity * 100));
+      let continuityScore = 100;
+
+      if (this.prevMidi !== null) {
+        const deltaCents = Math.abs(getCentsDiff(pitch.midi, this.prevMidi));
+        // Within 35 cents: perfect continuity (100). Smooth linear decay to 0 at 100 cents.
+        continuityScore = Math.max(0, Math.min(100, (1 - Math.max(0, deltaCents - 35) / 65) * 100));
       }
 
-      const sustainedDurationMs = this.sustainedTicks * tickDurationMs;
-      let tickStabilityScore: number;
-      if (sustainedDurationMs >= 200) {
-        tickStabilityScore = 100;
-      } else {
-        const stabilityFactor = (sustainedDurationMs / 200) * 100;
-        const clarityScore = Math.min(100, Math.max(0, pitch.clarity * 100));
-        tickStabilityScore = 0.5 * clarityScore + 0.5 * stabilityFactor;
-      }
+      const tickStabilityScore = 0.5 * clarityScore + 0.5 * continuityScore;
       this.stabilityClaritySum += tickStabilityScore;
+      this.prevMidi = pitch.midi;
 
-      // 3. Melodic Variety
+      // 3. Melodic Variety tracking
       const roundedMidi = Math.round(pitch.midi);
       this.noteTickCounts.set(roundedMidi, (this.noteTickCounts.get(roundedMidi) ?? 0) + 1);
     } else {
-      // Silence or invalid pitch breaks sustained note
-      this.sustainedRefMidi = null;
-      this.sustainedTicks = 0;
+      // Silence or unvoiced break resets continuity anchor
+      this.prevMidi = null;
     }
 
     // Compute breakdown metrics
@@ -177,9 +162,11 @@ export class ScoringEngine {
         ? 0
         : Math.round((this.stabilityClaritySum / this.validVocalTicks) * 10) / 10;
 
+    // Active vocal coverage normalized against a 40% active singing benchmark
+    const rawVocalRatio = this.activeTicks > 0 ? this.validVocalTicks / this.activeTicks : 0;
     let activeVocalCoverage = 0;
     if (this.activeTicks > 0 && this.validVocalTicks > 0) {
-      activeVocalCoverage = Math.min(100, ((this.validVocalTicks / this.activeTicks) / 0.45) * 100);
+      activeVocalCoverage = Math.min(100, (rawVocalRatio / 0.40) * 100);
       activeVocalCoverage = Math.round(activeVocalCoverage * 10) / 10;
     }
 
@@ -202,67 +189,95 @@ export class ScoringEngine {
       melodicVariety,
     };
 
-    // Mode-specific calculations
+    // Branch into isolated evaluation helpers
     if (this.mode === 'exact' && this.song) {
-      const effectiveTimeMs = interpolatedTimeMs - latencyOffsetMs - this.song.offsetMs;
-      const activeNote: NoteEvent | undefined = this.song.notes.find(
-        (n) => effectiveTimeMs >= n.startMs && effectiveTimeMs < n.endMs
-      );
-
-      let targetMidi: number | null = null;
-      let centsDelta: number | null = null;
-
-      if (activeNote) {
-        targetMidi = activeNote.midiNote;
-        this.exactNoteTicks++;
-
-        if (pitch.isValid && pitch.midi !== null) {
-          centsDelta = getCentsDiff(pitch.midi, activeNote.midiNote);
-          const absCents = Math.abs(centsDelta);
-          if (absCents <= 25) {
-            this.exactWeightedHits += 1.0;
-            this.combo++;
-            if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-          } else if (absCents <= 50) {
-            this.exactWeightedHits += 0.5;
-            this.combo++;
-            if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-          } else {
-            // > 50 cents miss
-            this.combo = 0;
-          }
-        } else {
-          // Silence during active note
-          this.combo = 0;
-        }
-      }
-
-      const rawExactScore =
-        this.exactNoteTicks === 0
-          ? 0
-          : (this.exactWeightedHits / this.exactNoteTicks) * 100;
-      const score = Math.round(rawExactScore * 10) / 10;
-      const accuracyPct = score;
-      const rating = computeRating(score);
-
-      this.latestSnapshot = {
-        mode: 'exact',
-        score,
-        accuracyPct,
-        combo: this.combo,
-        maxCombo: this.maxCombo,
-        targetMidi,
-        centsDelta,
-        activeTicks: this.activeTicks,
-        validVocalTicks: this.validVocalTicks,
-        breakdown,
-        rating,
-      };
-
-      return this.latestSnapshot;
+      return this.computeExactSnapshot(input, breakdown);
     }
 
-    // Tier 2: Smart Vocal Score
+    return this.computeSmartVocalSnapshot(pitch, breakdown);
+  }
+
+  /**
+   * Tier 1: Exact Melody Snapshot Computation (reference song chart)
+   */
+  private computeExactSnapshot(
+    input: {
+      interpolatedTimeMs: number;
+      latencyOffsetMs: number;
+      pitch: SmoothedPitchFrame;
+    },
+    breakdown: SmartVocalBreakdown
+  ): ScoreSnapshot {
+    const { interpolatedTimeMs, latencyOffsetMs, pitch } = input;
+    const song = this.song!;
+    const effectiveTimeMs = interpolatedTimeMs - latencyOffsetMs - song.offsetMs;
+
+    const activeNote: NoteEvent | undefined = song.notes.find(
+      (n) => effectiveTimeMs >= n.startMs && effectiveTimeMs < n.endMs
+    );
+
+    let targetMidi: number | null = null;
+    let centsDelta: number | null = null;
+
+    if (activeNote) {
+      targetMidi = activeNote.midiNote;
+      this.exactNoteTicks++;
+
+      if (pitch.isValid && pitch.midi !== null) {
+        centsDelta = getCentsDiff(pitch.midi, activeNote.midiNote);
+        const absCents = Math.abs(centsDelta);
+        if (absCents <= 25) {
+          this.exactWeightedHits += 1.0;
+          this.combo++;
+          if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+        } else if (absCents <= 50) {
+          this.exactWeightedHits += 0.5;
+          this.combo++;
+          if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+        } else {
+          // > 50 cents off-pitch
+          this.combo = 0;
+        }
+      } else {
+        // Silence during active note
+        this.combo = 0;
+      }
+    }
+
+    const rawExactScore =
+      this.exactNoteTicks === 0
+        ? 0
+        : (this.exactWeightedHits / this.exactNoteTicks) * 100;
+    const score = Math.round(rawExactScore * 10) / 10;
+    const accuracyPct = score;
+    const rating = computeRating(score);
+
+    this.latestSnapshot = {
+      mode: 'exact',
+      score,
+      accuracyPct,
+      combo: this.combo,
+      maxCombo: this.maxCombo,
+      targetMidi,
+      centsDelta,
+      activeTicks: this.activeTicks,
+      validVocalTicks: this.validVocalTicks,
+      breakdown,
+      rating,
+    };
+
+    return this.latestSnapshot;
+  }
+
+  /**
+   * Tier 2: Vocal Performance Snapshot Computation (no reference chart)
+   * Evaluates pitch stability, semitone precision, and vocal participation.
+   * Gated by a continuous coverage factor: Math.min(1, Math.pow(rawVocalRatio / 0.40, 1.2)).
+   */
+  private computeSmartVocalSnapshot(
+    pitch: SmoothedPitchFrame,
+    breakdown: SmartVocalBreakdown
+  ): ScoreSnapshot {
     let targetMidi: number | null = null;
     let centsDelta: number | null = null;
 
@@ -282,16 +297,20 @@ export class ScoringEngine {
     }
 
     let score = 0;
-    if (this.validVocalTicks > 0) {
-      score = Math.round(
-        0.4 * inTuneAccuracy +
-          0.25 * stabilityClarity +
-          0.2 * activeVocalCoverage +
-          0.15 * melodicVariety
-      );
+    if (this.validVocalTicks > 0 && this.activeTicks > 0) {
+      const rawVocalRatio = this.validVocalTicks / this.activeTicks;
+      const coverageFactor = Math.min(1, Math.pow(rawVocalRatio / 0.40, 1.2));
+
+      const baseVocalScore =
+        0.4 * breakdown.inTuneAccuracy +
+        0.25 * breakdown.stabilityClarity +
+        0.2 * breakdown.activeVocalCoverage +
+        0.15 * breakdown.melodicVariety;
+
+      score = Math.round(baseVocalScore * coverageFactor);
     }
 
-    const accuracyPct = Math.round(inTuneAccuracy);
+    const accuracyPct = Math.round(breakdown.inTuneAccuracy);
     const rating = computeRating(score);
 
     this.latestSnapshot = {
