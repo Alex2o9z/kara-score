@@ -1211,8 +1211,8 @@ export function App() {
               </button>
             </div>
 
-            {/* Close footer button */}
-            <div className="pt-2">
+            {/* Close footer button & Version label */}
+            <div className="pt-2 space-y-2 text-center">
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
@@ -1220,6 +1220,9 @@ export function App() {
               >
                 Đóng cài đặt
               </button>
+              <div className="text-[10px] text-zinc-500 font-mono tracking-wider">
+                KaraScore v1.0.0
+              </div>
             </div>
           </div>
         </div>
