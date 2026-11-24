@@ -1,0 +1,16 @@
+[
+  {
+    "songId": "sample-song",
+    "title": "KaraScore Test Melody",
+    "artist": "KaraScore Ensemble",
+    "youtubeVideoId": "dQw4w9WgXcQ",
+    "file": "sample-song.json"
+  },
+  {
+    "songId": "demo-ballad",
+    "title": "Acoustic Ballad in C",
+    "artist": "KaraScore Studio",
+    "youtubeVideoId": "jNQXAC9IVRw",
+    "file": "demo-ballad.json"
+  }
+]

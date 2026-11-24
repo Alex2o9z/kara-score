@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "songId": "demo-ballad",
+  "title": "Acoustic Ballad in C",
+  "artist": "KaraScore Studio",
+  "youtubeVideoId": "jNQXAC9IVRw",
+  "offsetMs": 0,
+  "notes": [
+    { "startMs": 1000, "endMs": 2200, "midiNote": 60 },
+    { "startMs": 2500, "endMs": 3700, "midiNote": 62 },
+    { "startMs": 4000, "endMs": 5500, "midiNote": 64 },
+    { "startMs": 5800, "endMs": 7200, "midiNote": 65 },
+    { "startMs": 8500, "endMs": 9800, "midiNote": 67 },
+    { "startMs": 10100, "endMs": 11400, "midiNote": 65 },
+    { "startMs": 11700, "endMs": 13000, "midiNote": 64 },
+    { "startMs": 14500, "endMs": 15800, "midiNote": 62 },
+    { "startMs": 16200, "endMs": 17800, "midiNote": 64 },
+    { "startMs": 18200, "endMs": 20000, "midiNote": 60 }
+  ]
+}

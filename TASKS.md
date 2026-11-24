@@ -1,27 +1,34 @@
 # SESSION HANDOFF
 
-Last Updated: 2026-11-23
+Last Updated: 2026-11-24
 
 ## 1. Last Completed Task
-- **Task ID:** `T3.1`
-- **Result:** Implemented `PitchTrack` (DOM/GPU-accelerated CSS `transform: translate3d(...)` visualizer covering vocal MIDI range A2–A5 with Tier 1 scrolling target notes + Tier 2 live semitone lane + live cursor HUD), `LatencyControl` (-300ms to +300ms slider with 0ms quick reset & localStorage persistence), and `ResultModal` (auto-opens on ENDED or manual trigger with score, tier badge, max combo, 4 Smart Vocal metrics breakdown, exact accuracy %, and replay action). Integrated cleanly into `src/App.tsx`.
+- **Task ID:** `T3.2`
+- **Result:** Implemented static song catalog (`public/songs/index.json` + `public/songs/demo-ballad.json`), song catalog service with URL query routing (`parseLaunchParams`), chart validation (`parseCustomSongJson`), 19 unit tests in `songCatalog.test.ts`, song selector UI, custom JSON file import, mobile YouTube search shortcut, and YouTube embed-blocked recovery banner in `src/App.tsx`. Configured `server: { allowedHosts: true }` in `vite.config.ts`.
 - **Commit:** (uncommitted — per L3 guardrails)
 
 ## 2. Current Blocker
 - **Problem:** None
-- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (9 files, 83 tests), and `build`.
-- **Attempted Solutions:** Used derived state pattern for `ResultModal` lifecycle avoiding cascading render lint violations; GPU-composited CSS transforms for 60fps rendering without canvas redraws.
+- **Evidence:** `npm run verify` passed cleanly across `typecheck`, `lint`, `test` (10 files, 102 tests), and `build`.
+- **Attempted Solutions:** Resolved `preserve-caught-error` lint check in `songCatalog.ts` by propagating `{ cause: err }`; tested query parameter parsing and custom JSON schema validation thoroughly.
 
 ## 3. First Action Next Session
-- **Task ID:** `T3.2`
-- **Expected Result:** Implement static song cache index (`public/songs/index.json`), URL query parameter launch (`?v=<id>&title=<title>`), mobile paste/search UI, and song lookup / URL parsing tests.
+- **Task ID:** `T3.3`
+- **Expected Result:** Implement Companion Chrome Extension (Manifest V3 in `extension/`) injecting `"🎤 Hát chấm điểm"` launch button on YouTube search & watch pages opening KaraScore with `?v=<id>&title=<title>`.
 - **Files to Read:** [RULES.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/RULES.md), [SPEC.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/SPEC.md), [ARCHITECTURE.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/ARCHITECTURE.md), [TASKS.md](file:///D:/Workspace/ttptqd/2026/2026_12_Pet_Project_Karaoke/karascore/TASKS.md)
 
 ## 4. Uncommitted Changes
+- `public/songs/demo-ballad.json`
+- `public/songs/index.json`
 - `src/App.tsx`
 - `src/components/LatencyControl.tsx`
 - `src/components/PitchTrack.tsx`
 - `src/components/ResultModal.tsx`
+- `src/engines/ScoringEngine.test.ts`
+- `src/engines/ScoringEngine.ts`
+- `src/services/songCatalog.test.ts`
+- `src/services/songCatalog.ts`
+- `vite.config.ts`
 - `TASKS.md`
 
 ---
@@ -46,7 +53,7 @@ Last Updated: 2026-11-23
 
 ## Phase 3 — Iterative Build
 - [x] **`T3.1`**: Implement GPU-accelerated Pitch Track visualizer component strictly below video, Latency Offset Slider, and Result Modal with 4-metric breakdown.
-- [ ] **`T3.2`**: Implement static song cache index, URL query launch (`?v=&title=`), mobile paste/search UI, and URL parsing tests.
+- [x] **`T3.2`**: Implement static song cache index, URL query launch (`?v=&title=`), mobile paste/search UI, and URL parsing tests.
 - [ ] **`T3.3`**: Implement Companion Chrome Extension (Manifest V3 in `extension/`) injecting `"🎤 Hát chấm điểm"` launch button on YouTube search & watch pages.
 - [ ] **`G3`**: Gate 3 — End-to-end verification of full scored karaoke flow across Exact and Smart Vocal modes.
 

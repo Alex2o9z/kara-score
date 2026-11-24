@@ -1,11 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DebugHUD } from './components/DebugHUD';
 import { LatencyControl } from './components/LatencyControl';
 import { PitchTrack } from './components/PitchTrack';
 import { ResultModal } from './components/ResultModal';
 import { useKaraokeSession } from './hooks/useKaraokeSession';
+import {
+  fetchSongCatalog,
+  findSongInCatalog,
+  loadSongChart,
+  parseCustomSongJson,
+  parseLaunchParams,
+  type SongCatalogEntry,
+} from './services/songCatalog';
 import { extractYouTubeVideoId } from './services/youtubeUrlParser';
-import type { SongData } from './types/karaoke';
 
 export function App() {
   const {
@@ -32,11 +39,15 @@ export function App() {
     seekTo,
   } = useKaraokeSession();
 
+  const [catalog, setCatalog] = useState<SongCatalogEntry[]>([]);
   const [customInput, setCustomInput] = useState<string>('');
+  const [customSongTitle, setCustomSongTitle] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
-  const [isLoadingSample, setIsLoadingSample] = useState<boolean>(false);
+  const [isLoadingSong, setIsLoadingSong] = useState<boolean>(false);
   const [isManualResultOpen, setIsManualResultOpen] = useState<boolean>(false);
   const [hasDismissedEndedResult, setHasDismissedEndedResult] = useState<boolean>(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Restore hardware latency calibration from localStorage
   useEffect(() => {
@@ -53,25 +64,69 @@ export function App() {
     }
   }, [setLatencyOffsetMs]);
 
+  // Load song catalog and handle URL query parameters (?v=&title=) on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const initCatalogAndRouting = async () => {
+      try {
+        const catalogData = await fetchSongCatalog();
+        if (!isMounted) return;
+        setCatalog(catalogData);
+
+        // Read launch params from URL query
+        const { videoId, title } = parseLaunchParams(window.location.search);
+        if (title) {
+          setCustomSongTitle(title);
+        }
+
+        if (videoId) {
+          setCustomInput(videoId);
+          const matchedEntry = findSongInCatalog(catalogData, videoId);
+          if (matchedEntry) {
+            // Tier 1 Exact Melody (catalog hit)
+            const chart = await loadSongChart(matchedEntry);
+            if (isMounted) {
+              loadVideo(matchedEntry.youtubeVideoId, chart);
+              setCustomSongTitle(matchedEntry.title);
+            }
+          } else {
+            // Tier 2 Vocal Performance fallback (catalog miss)
+            if (isMounted) {
+              loadVideo(videoId, null);
+            }
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Lỗi khởi tạo thư viện bài hát:', err);
+        }
+      }
+    };
+
+    void initCatalogAndRouting();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loadVideo]);
+
   // Derive ResultModal visibility: opens on ENDED (unless dismissed) or via manual trigger
   const isResultOpen =
     isManualResultOpen || (playerState === 'ENDED' && !hasDismissedEndedResult);
 
-  const handleLoadSampleSong = async () => {
+  const handleSelectCatalogSong = async (entry: SongCatalogEntry) => {
     try {
-      setIsLoadingSample(true);
+      setIsLoadingSong(true);
       setInputError(null);
-      const res = await fetch('/songs/sample-song.json');
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const songData: SongData = await res.json();
-      loadVideo(songData.youtubeVideoId, songData);
-      setCustomInput(songData.youtubeVideoId);
+      const songData = await loadSongChart(entry);
+      loadVideo(entry.youtubeVideoId, songData);
+      setCustomInput(entry.youtubeVideoId);
+      setCustomSongTitle(entry.title);
     } catch (err) {
-      setInputError(`Không tải được bài hát mẫu: ${(err as Error).message}`);
+      setInputError(`Không tải được bài hát "${entry.title}": ${(err as Error).message}`);
     } finally {
-      setIsLoadingSample(false);
+      setIsLoadingSong(false);
     }
   };
 
@@ -83,7 +138,39 @@ export function App() {
       return;
     }
     setInputError(null);
-    loadVideo(videoId, null);
+
+    // Check if the user entered a video ID that exists in our catalog
+    const matched = findSongInCatalog(catalog, videoId);
+    if (matched) {
+      void handleSelectCatalogSong(matched);
+    } else {
+      setCustomSongTitle(null);
+      loadVideo(videoId, null);
+    }
+  };
+
+  const handleImportChart = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const rawJson = event.target?.result as string;
+        const imported = parseCustomSongJson(rawJson);
+        loadVideo(imported.youtubeVideoId, imported);
+        setCustomInput(imported.youtubeVideoId);
+        setCustomSongTitle(imported.title);
+        setInputError(null);
+      } catch (err) {
+        setInputError(`Lỗi file phổ nốt: ${(err as Error).message}`);
+      }
+    };
+    reader.onerror = () => {
+      setInputError('Không thể đọc file JSON đã chọn.');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleReplay = () => {
@@ -125,7 +212,7 @@ export function App() {
                 KaraScore
               </h1>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
-                Phase 3A UI
+                Phase 3B MVP
               </span>
             </div>
             <p className="text-zinc-400 text-xs md:text-sm mt-0.5">
@@ -162,18 +249,37 @@ export function App() {
           />
         </div>
 
-        {/* Error Alerts */}
+        {/* Error Alerts & YouTube Embed Recovery UI */}
         {ytError && (
-          <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-200 text-xs space-y-1">
-            <div className="font-bold flex items-center gap-1.5 text-rose-300">
+          <div className="p-4 rounded-xl bg-rose-950/70 border border-rose-800 text-rose-200 text-xs space-y-2.5">
+            <div className="font-bold flex items-center gap-1.5 text-rose-300 text-sm">
               <span>⚠️ Lỗi trình phát YouTube (Mã {ytError.code})</span>
             </div>
             <p>{ytError.message}</p>
             {ytError.isEmbedBlocked && (
-              <p className="text-rose-300 font-semibold mt-1">
-                Gợi ý: Hãy thử dán một video YouTube karaoke khác cho phép nhúng (ví dụ: các video karaoke phổ biến).
+              <p className="text-rose-200 font-medium">
+                Video này bị chủ sở hữu chặn phát ở chế độ nhúng (Embed Blocked). Bạn có thể mở tìm kiếm YouTube để chọn video karaoke khác cho phép nhúng, hoặc thử các bài hát có sẵn trong thư viện.
               </p>
             )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <a
+                href="https://www.youtube.com/results?search_query=karaoke"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-rose-900/90 hover:bg-rose-800 text-rose-100 font-semibold text-xs border border-rose-700 transition-colors inline-flex items-center gap-1"
+              >
+                <span>🔍 Tìm video karaoke khác trên YouTube ↗</span>
+              </a>
+              {catalog.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void handleSelectCatalogSong(catalog[0])}
+                  className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs border border-zinc-600 transition-colors cursor-pointer"
+                >
+                  🎵 Thử bài mẫu: {catalog[0].title}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -221,6 +327,10 @@ export function App() {
               <div className="text-[10px] text-zinc-400 truncate max-w-full">
                 {activeSong.title}
               </div>
+            ) : customSongTitle ? (
+              <div className="text-[10px] text-zinc-400 truncate max-w-full">
+                {customSongTitle}
+              </div>
             ) : null}
           </div>
 
@@ -262,20 +372,66 @@ export function App() {
 
         {/* Action Controls Section */}
         <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Song Pickers */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleLoadSampleSong}
-                disabled={isLoadingSample}
-                className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-medium text-xs transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {isLoadingSample ? 'Đang tải...' : '🎵 Load Sample Chart (Tier 1 Exact)'}
-              </button>
+          {/* Song Library Selector (Tier 1 Cached Charts) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
+                <span>📚 Thư viện bài hát (Tier 1 Exact Melody):</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".json"
+                  onChange={handleImportChart}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-medium border border-zinc-700 cursor-pointer transition-colors"
+                >
+                  📥 Nhập file .json
+                </button>
+                <a
+                  href="https://www.youtube.com/results?search_query=karaoke"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-cyan-300 text-[11px] font-medium border border-zinc-700 transition-colors inline-flex items-center gap-1"
+                >
+                  🔍 Tìm trên YouTube ↗
+                </a>
+              </div>
             </div>
 
-            {/* Mic Controls & Score Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              {catalog.map((entry) => {
+                const isActive = activeSong?.songId === entry.songId;
+                return (
+                  <button
+                    key={entry.songId}
+                    type="button"
+                    onClick={() => void handleSelectCatalogSong(entry)}
+                    disabled={isLoadingSong}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 border ${
+                      isActive
+                        ? 'bg-indigo-600 border-indigo-400 text-white shadow-sm shadow-indigo-900'
+                        : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700 text-zinc-300'
+                    }`}
+                  >
+                    <span>🎵 {entry.title}</span>
+                    <span className="text-[10px] opacity-75 font-normal">({entry.artist})</span>
+                  </button>
+                );
+              })}
+              {catalog.length === 0 && (
+                <span className="text-xs text-zinc-500 italic">Đang tải danh mục bài hát...</span>
+              )}
+            </div>
+          </div>
+
+          {/* Mic Controls & Score Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-zinc-800/60">
             <div className="flex items-center gap-2">
               {micStatus !== 'running' ? (
                 <button
@@ -313,7 +469,7 @@ export function App() {
             </div>
           </div>
 
-          {/* Custom YouTube URL/ID Input (Tier 2 Smart Mode) */}
+          {/* Custom YouTube URL/ID Input (Tier 2 Vocal Performance Mode) */}
           <form onSubmit={handleLoadCustomUrl} className="flex gap-2">
             <input
               type="text"
@@ -365,7 +521,7 @@ export function App() {
         onReplay={handleReplay}
         score={score}
         mode={mode}
-        songTitle={activeSong?.title}
+        songTitle={activeSong?.title || customSongTitle || undefined}
       />
 
       {/* DEV-Only Telemetry Overlay HUD (Strictly hidden in production builds) */}
@@ -380,7 +536,7 @@ export function App() {
         latencyOffsetMs={latencyOffsetMs}
         ytError={ytError}
         score={score}
-        activeSongTitle={activeSong?.title}
+        activeSongTitle={activeSong?.title || customSongTitle || undefined}
       />
     </div>
   );
