@@ -112,45 +112,34 @@ export const PitchTrack: React.FC<PitchTrackProps> = ({
           <span className="text-zinc-500 font-semibold uppercase text-[10px] tracking-wider shrink-0">
             {mode === 'exact' ? '🎯 Tier 1: Exact Melody' : '✨ Tier 2: Vocal Performance'}
           </span>
-          <div className="flex items-center gap-1 font-mono">
-            <span className="text-zinc-400 text-[10px] sm:text-[11px]">Nốt:</span>
-            <span className="font-bold text-zinc-100 min-w-7 text-[11px] sm:text-xs">
-              {pitch.noteName ? (
-                <span className={isPerfect ? 'text-emerald-400' : isInTune ? 'text-amber-400' : 'text-cyan-300'}>
-                  {pitch.noteName}
-                </span>
-              ) : (
-                <span className="text-zinc-600">—</span>
-              )}
+          {/* Prominent Live Detected Note Badge (NoteName + centsDelta) */}
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono transition-all duration-150 ${
+              isVocalActive && pitch.noteName
+                ? isPerfect
+                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/70 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                  : isInTune
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-500/70 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                    : 'bg-rose-950/60 text-rose-300 border-rose-600/50'
+                : 'bg-zinc-800/80 text-zinc-500 border-zinc-700/60'
+            }`}
+          >
+            <span className="text-[10px] text-zinc-400 uppercase font-semibold">Giọng:</span>
+            <span className="font-black text-xs sm:text-sm tracking-tight min-w-6 text-center">
+              {pitch.noteName || '—'}
             </span>
+            {centsDelta !== null && isVocalActive && (
+              <span className="text-[10px] sm:text-xs font-bold border-l border-current/30 pl-1.5">
+                {centsDelta >= 0 ? '+' : ''}
+                {centsDelta.toFixed(0)}c
+              </span>
+            )}
           </div>
 
           <div className="hidden md:flex items-center gap-1 font-mono">
             <span className="text-zinc-400 text-[11px]">Hz:</span>
             <span className="text-zinc-300 min-w-14 text-xs">
               {pitch.hz ? `${pitch.hz.toFixed(1)} Hz` : '—'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1 font-mono">
-            <span className="text-zinc-400 text-[10px] sm:text-[11px]">Độ lệch:</span>
-            <span className="min-w-10 text-[11px] sm:text-xs">
-              {centsDelta !== null ? (
-                <span
-                  className={`font-semibold ${
-                    isPerfect
-                      ? 'text-emerald-400'
-                      : isInTune
-                        ? 'text-amber-400'
-                        : 'text-rose-400'
-                  }`}
-                >
-                  {centsDelta >= 0 ? '+' : ''}
-                  {centsDelta.toFixed(0)}c
-                </span>
-              ) : (
-                <span className="text-zinc-600">—</span>
-              )}
             </span>
           </div>
         </div>

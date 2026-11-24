@@ -103,7 +103,7 @@ export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] font-mono text-xs rounded-xl shadow-2xl border border-zinc-800 bg-zinc-950/90 backdrop-blur-md text-zinc-200 overflow-hidden select-none">
+    <div className="fixed bottom-0 inset-x-0 z-40 rounded-t-xl border-t md:border border-zinc-800 bg-zinc-950/95 backdrop-blur-md text-zinc-200 overflow-hidden select-none font-mono text-xs shadow-2xl md:top-4 md:right-4 md:bottom-auto md:inset-x-auto md:w-80 md:rounded-xl">
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 py-2 bg-zinc-900/80 border-b border-zinc-800">
         <div className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export const DebugHUD: React.FC<DebugHUDProps> = (props) => {
       </div>
 
       {isExpanded && (
-        <div className="p-3 space-y-3 max-h-[80vh] overflow-y-auto">
+        <div className="p-3 space-y-3 max-h-[45vh] md:max-h-[80vh] overflow-y-auto">
           {/* Group 1: Audio & Pitch */}
           <section className="bg-zinc-900/50 rounded-lg p-2.5 border border-zinc-800/80 space-y-1.5">
             <div className="flex items-center justify-between text-zinc-400 font-semibold border-b border-zinc-800 pb-1">

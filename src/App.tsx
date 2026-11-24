@@ -41,7 +41,6 @@ export function App() {
     resetScore,
     setLatencyOffsetMs,
     play,
-    pause,
     seekTo,
   } = useKaraokeSession();
 
@@ -77,6 +76,59 @@ export function App() {
   };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // Sync fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (stageRef.current?.requestFullscreen) {
+          await stageRef.current.requestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('Lỗi bật/tắt toàn màn hình:', err);
+    }
+  };
+
+  // Keyboard shortcut M to toggle microphone (ignoring input/textarea focus)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'm' || e.key === 'M') {
+        const target = e.target as HTMLElement | null;
+        const tagName = target?.tagName;
+        if (tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        if (micStatus === 'running') {
+          stopMic();
+        } else {
+          void startMic();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [micStatus, startMic, stopMic]);
 
   // Restore hardware latency calibration from localStorage
   useEffect(() => {
@@ -517,116 +569,148 @@ export function App() {
           </div>
         )}
 
-        {/* Video Player Container (Strictly ZERO overlays on top per YouTube policy) */}
-        <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-zinc-800">
-          <div
-            ref={attachPlayerContainer}
-            className="w-full h-full"
-            id="youtube-player"
-          />
-        </div>
-
-        {/* Pitch Track Visualizer (Strictly positioned BELOW the YouTube Player) */}
-        <PitchTrack
-          mode={mode}
-          activeSong={activeSong}
-          interpolatedTimeMs={interpolatedTimeMs}
-          latencyOffsetMs={latencyOffsetMs}
-          pitch={pitch}
-          score={score}
-          playerState={playerState}
-        />
-
-        {/* Main Stage Unified Score & Control Dock */}
-        <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-3 sm:p-4 shadow-xl space-y-3.5">
-          {/* Top Row: Real-time Telemetry Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            {/* Score Card */}
-            <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
-              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Điểm số</span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-400 flex items-center justify-center gap-1.5">
-                <span>{score.score}</span>
-                <span className={`text-[11px] px-1.5 py-0.2 rounded border font-bold ${getRatingColor(score.rating)}`}>
-                  {score.rating}
-                </span>
-              </div>
-            </div>
-
-            {/* Combo Card */}
-            <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
-              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Combo</span>
-              <div className="text-xl sm:text-2xl font-black text-amber-400">
-                {score.combo} <span className="text-[10px] text-zinc-400 font-normal">(Max: {score.maxCombo})</span>
-              </div>
-            </div>
-
-            {/* Detected Note Card */}
-            <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
-              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Cao độ nhận diện</span>
-              <div className="font-mono text-sm sm:text-base font-bold text-zinc-200">
-                {pitch.noteName ? (
-                  <span className="text-teal-300">
-                    {pitch.noteName}
-                    {score.centsDelta !== null && (
-                      <span className="text-[10px] font-normal text-zinc-400 ml-1">
-                        ({score.centsDelta >= 0 ? '+' : ''}{score.centsDelta.toFixed(0)}c)
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="text-zinc-600">—</span>
-                )}
-              </div>
-            </div>
-
-            {/* Mode Card */}
-            <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
-              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Chế độ chấm</span>
-              <div className="font-bold text-xs sm:text-sm text-cyan-400 truncate">
-                {mode === 'exact' ? 'Tier 1: Exact' : 'Tier 2: Vocal'}
-              </div>
-              <div className="text-[10px] text-zinc-400 truncate">
-                {mode === 'exact' ? (activeSong?.title || 'Phổ nốt') : 'Đo ổn định & độ phủ'}
-              </div>
-            </div>
+        {/* Karaoke Stage Container (Supports Fullscreen Single Focal Point) */}
+        <div
+          ref={stageRef}
+          className={`space-y-3 sm:space-y-4 w-full ${
+            isFullscreen ? 'p-3 sm:p-6 bg-zinc-950 overflow-y-auto max-h-screen' : ''
+          }`}
+        >
+          {/* Video Player Container (Strictly ZERO overlays on top per YouTube policy) */}
+          <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-zinc-800">
+            <div
+              ref={attachPlayerContainer}
+              className="w-full h-full"
+              id="youtube-player"
+            />
           </div>
 
-          {/* Bottom Row: Smart Action Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-800/80">
-            {/* Primary Mic Activation CTA */}
-            <div className="flex items-center gap-2 flex-1 sm:flex-initial min-w-[160px]">
-              {micStatus !== 'running' ? (
-                <button
-                  type="button"
-                  onClick={startMic}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-98 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/80 min-h-[42px] animate-pulse"
-                >
-                  <span className="text-base">🎤</span>
-                  <span>Bật Micro để chấm điểm</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stopMic}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-98 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[42px]"
-                >
-                  <span>🛑 Dừng Micro</span>
-                </button>
-              )}
+          {/* Pitch Track Visualizer (Strictly positioned BELOW the YouTube Player) */}
+          <PitchTrack
+            mode={mode}
+            activeSong={activeSong}
+            interpolatedTimeMs={interpolatedTimeMs}
+            latencyOffsetMs={latencyOffsetMs}
+            pitch={pitch}
+            score={score}
+            playerState={playerState}
+          />
+
+          {/* Main Stage Unified Score & Control Dock */}
+          <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-3 sm:p-4 shadow-xl space-y-3.5">
+            {/* Top Row: Real-time Telemetry Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              {/* Score Card with Proximity Mid-Song Pause Scoring Pills */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-1 relative">
+                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Điểm số</span>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-400 flex items-center justify-center gap-1.5">
+                  <span>{score.score}</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded border font-bold ${getRatingColor(score.rating)}`}>
+                    {score.rating}
+                  </span>
+                </div>
+                {/* Contextual Mid-Song Pause Scoring & Replay pills */}
+                {isMidSongPaused && (
+                  <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-zinc-800/60 animate-in fade-in duration-150">
+                    <button
+                      type="button"
+                      onClick={() => setIsManualResultOpen(true)}
+                      className="px-2 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 text-emerald-300 font-bold text-[10px] sm:text-[11px] transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                      title="Xem bảng chấm điểm lúc này"
+                    >
+                      <span>🏆 Chấm điểm ngay</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReplay}
+                      className="px-2 py-1 rounded-lg border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 text-emerald-300 font-bold text-[10px] sm:text-[11px] transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                      title="Hát lại bài này"
+                    >
+                      <span>↻ Hát lại</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Combo Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
+                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Combo</span>
+                <div className="text-xl sm:text-2xl font-black text-amber-400">
+                  {score.combo} <span className="text-[10px] text-zinc-400 font-normal">(Max: {score.maxCombo})</span>
+                </div>
+              </div>
+
+              {/* Detected Note Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
+                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Cao độ nhận diện</span>
+                <div className="font-mono text-sm sm:text-base font-bold text-zinc-200">
+                  {pitch.noteName ? (
+                    <span className="text-teal-300">
+                      {pitch.noteName}
+                      {score.centsDelta !== null && (
+                        <span className="text-[10px] font-normal text-zinc-400 ml-1">
+                          ({score.centsDelta >= 0 ? '+' : ''}{score.centsDelta.toFixed(0)}c)
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-zinc-600">—</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Mode Card */}
+              <div className="p-2 sm:p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-0.5">
+                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">Chế độ chấm</span>
+                <div className="font-bold text-xs sm:text-sm text-cyan-400 truncate">
+                  {mode === 'exact' ? 'Tier 1: Exact' : 'Tier 2: Vocal'}
+                </div>
+                <div className="text-[10px] text-zinc-400 truncate">
+                  {mode === 'exact' ? (activeSong?.title || 'Phổ nốt') : 'Đo ổn định & độ phủ'}
+                </div>
+              </div>
             </div>
 
-            {/* Secondary Stage Controls */}
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
-              {/* Mid-song Pause Scoring Highlight or Standard Result */}
-              {isMidSongPaused ? (
+            {/* Bottom Row: Smart Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-800/80">
+              {/* Primary Mic Activation CTA with Desktop (Phím M) shortcut */}
+              <div className="flex items-center gap-2 flex-1 sm:flex-initial min-w-[160px]">
+                {micStatus !== 'running' ? (
+                  <button
+                    type="button"
+                    onClick={startMic}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-98 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/80 min-h-[42px] animate-pulse"
+                    title="Bật Micro để chấm điểm (Phím tắt: M)"
+                  >
+                    <span className="text-base">🎤</span>
+                    <span>Bật Micro (Phím M)</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stopMic}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-98 text-white font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-2 min-h-[42px]"
+                    title="Dừng Micro (Phím tắt: M)"
+                  >
+                    <span>🛑 Dừng Micro (Phím M)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Secondary Stage Controls */}
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                {/* Fullscreen stage toggle */}
                 <button
                   type="button"
-                  onClick={() => setIsManualResultOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black text-xs transition-all cursor-pointer shadow-lg shadow-amber-950/80 border border-amber-300 min-h-[42px] animate-bounce"
+                  onClick={() => void handleToggleFullscreen()}
+                  className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs border border-zinc-700 transition-colors cursor-pointer min-h-[40px] flex items-center gap-1.5"
+                  title="Bật/Tắt chế độ toàn màn hình cho sân khấu hát"
                 >
-                  🏆 Chấm điểm ngay lúc này
+                  <span>{isFullscreen ? '⛷' : '⛶'}</span>
+                  <span>{isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
                 </button>
-              ) : (
+
+                {/* Standard Result Modal Button */}
                 <button
                   type="button"
                   onClick={() => setIsManualResultOpen(true)}
@@ -634,77 +718,45 @@ export function App() {
                 >
                   🏆 Xem kết quả
                 </button>
-              )}
 
-              {/* Latency Calibration Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsLatencyOpen((prev) => !prev)}
-                className={`px-3 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer min-h-[40px] flex items-center gap-1.5 ${
-                  isLatencyOpen
-                    ? 'bg-cyan-950 text-cyan-300 border-cyan-700'
-                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                }`}
-              >
-                <span>⏱️ Độ trễ:</span>
-                <span className="font-mono font-bold">
-                  {latencyOffsetMs > 0 ? `+${latencyOffsetMs}` : latencyOffsetMs}ms
-                </span>
-              </button>
+                {/* Latency Calibration Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsLatencyOpen((prev) => !prev)}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer min-h-[40px] flex items-center gap-1.5 ${
+                    isLatencyOpen
+                      ? 'bg-cyan-950 text-cyan-300 border-cyan-700'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                  }`}
+                >
+                  <span>⏱️ Độ trễ:</span>
+                  <span className="font-mono font-bold">
+                    {latencyOffsetMs > 0 ? `+${latencyOffsetMs}` : latencyOffsetMs}ms
+                  </span>
+                </button>
 
-              {/* Score Reset */}
-              <button
-                type="button"
-                onClick={resetScore}
-                className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-zinc-300 font-medium text-xs transition-colors cursor-pointer border border-zinc-700 min-h-[40px]"
-                title="Đặt lại toàn bộ điểm số"
-              >
-                🔄 Đặt lại
-              </button>
+                {/* Score Reset */}
+                <button
+                  type="button"
+                  onClick={resetScore}
+                  className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-zinc-300 font-medium text-xs transition-colors cursor-pointer border border-zinc-700 min-h-[40px]"
+                  title="Đặt lại toàn bộ điểm số"
+                >
+                  🔄 Đặt lại
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Collapsible Latency Slider Panel */}
-          {isLatencyOpen && (
-            <div className="pt-2 border-t border-zinc-800 animate-in fade-in duration-150">
-              <LatencyControl
-                latencyOffsetMs={latencyOffsetMs}
-                setLatencyOffsetMs={setLatencyOffsetMs}
-                onClose={() => setIsLatencyOpen(false)}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Minimalist Playback Control Helper */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-900/40 border border-zinc-800/80 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 text-[11px] hidden sm:inline">Trình phát:</span>
-            <button
-              type="button"
-              onClick={play}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs cursor-pointer min-h-[36px]"
-            >
-              ▶ Phát
-            </button>
-            <button
-              type="button"
-              onClick={pause}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs cursor-pointer min-h-[36px]"
-            >
-              ⏸ Tạm dừng
-            </button>
-            <button
-              type="button"
-              onClick={() => seekTo(0)}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs cursor-pointer min-h-[36px]"
-            >
-              ⏮ Về đầu (0s)
-            </button>
-          </div>
-
-          <div className="text-[11px] text-zinc-500 font-mono">
-            {rawVideoTimeSec > 0 ? `${Math.floor(rawVideoTimeSec / 60)}:${String(Math.floor(rawVideoTimeSec % 60)).padStart(2, '0')}` : '0:00'}
+            {/* Collapsible Latency Slider Panel */}
+            {isLatencyOpen && (
+              <div className="pt-2 border-t border-zinc-800 animate-in fade-in duration-150">
+                <LatencyControl
+                  latencyOffsetMs={latencyOffsetMs}
+                  setLatencyOffsetMs={setLatencyOffsetMs}
+                  onClose={() => setIsLatencyOpen(false)}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
