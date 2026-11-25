@@ -58,6 +58,8 @@ export function App() {
   // Party & App Settings
   const [settings, setSettings] = useState<KaraScoreSettings>(() => loadPartySettings());
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [showBookmarkletHint, setShowBookmarkletHint] = useState<boolean>(false);
+  const [isCopiedExtensions, setIsCopiedExtensions] = useState<boolean>(false);
 
   // UX state flags
   const [isSongDrawerOpen, setIsSongDrawerOpen] = useState<boolean>(false);
@@ -1075,19 +1077,19 @@ export function App() {
         </div>
       </div>
 
-      {/* Party & Chấm Điểm Settings Modal */}
+      {/* Party, Chấm Điểm & Browser Extension Settings Modal */}
       {isSettingsOpen && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
         >
-          <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-5 text-zinc-100 space-y-5">
+          <div className="relative w-full max-w-4xl max-h-[88vh] overflow-y-auto rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-5 text-zinc-100 space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg">⚙️</span>
-                <h3 className="text-base font-bold text-white">Cài Đặt Party &amp; Chấm Điểm</h3>
+                <h3 className="text-base font-bold text-white">Cài Đặt &amp; Mở Rộng</h3>
               </div>
               <button
                 type="button"
@@ -1098,131 +1100,234 @@ export function App() {
               </button>
             </div>
 
-            {/* 1. Judge Mode */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider block">
-                Chế độ Giám khảo (Judge Mode)
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {[
-                  { id: 'standard', title: 'Chuẩn xác', desc: 'Điểm gốc 100%' },
-                  { id: 'lenient', title: 'Dễ tính (+8%)', desc: 'Động viên tiệc tùng' },
-                  { id: 'strict', title: 'Khó tính (-10%)', desc: 'Thử thách kỹ thuật' },
-                  { id: 'fun', title: 'Hài hước', desc: 'Nhận xét dí dỏm' },
-                ].map((item) => {
-                  const isSelected = settings.judgeMode === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleUpdateSettings({ judgeMode: item.id as JudgeMode })}
-                      className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-purple-950/70 border-purple-500 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-                          : 'bg-zinc-950 hover:bg-zinc-800/80 border-zinc-800 text-zinc-300'
+            {/* Responsive 2-Column Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Chấm Điểm & Micro */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Thiết lập chấm điểm &amp; Micro
+                </h4>
+
+                {/* 1. Judge Mode */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-zinc-300 block">
+                    Chế độ Giám khảo (Judge Mode)
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { id: 'standard', title: 'Chuẩn xác', desc: 'Điểm gốc 100%' },
+                      { id: 'lenient', title: 'Dễ tính (+8%)', desc: 'Động viên tiệc tùng' },
+                      { id: 'strict', title: 'Khó tính (-10%)', desc: 'Thử thách kỹ thuật' },
+                      { id: 'fun', title: 'Hài hước', desc: 'Nhận xét dí dỏm' },
+                    ].map((item) => {
+                      const isSelected = settings.judgeMode === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleUpdateSettings({ judgeMode: item.id as JudgeMode })}
+                          className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-purple-950/70 border-purple-500 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+                              : 'bg-zinc-950 hover:bg-zinc-800/80 border-zinc-800 text-zinc-300'
+                          }`}
+                        >
+                          <div className="text-xs font-bold flex items-center justify-between">
+                            <span>{item.title}</span>
+                            {isSelected && <span className="text-purple-400 text-xs">✓</span>}
+                          </div>
+                          <div className="text-[11px] text-zinc-400">{item.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Fun Remarks Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-semibold text-zinc-200 block">Lời nhận xét hài hước</span>
+                    <span className="text-[11px] text-zinc-400 block">
+                      Hiển thị lời bình dí dỏm vui nhộn theo từng thứ hạng S/A/B/C
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateSettings({ enableFunRemarks: !settings.enableFunRemarks })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      settings.enableFunRemarks ? 'bg-emerald-600' : 'bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        settings.enableFunRemarks ? 'translate-x-5' : 'translate-x-0'
                       }`}
+                    />
+                  </button>
+                </div>
+
+                {/* 3. Auto-Mic on Play */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-semibold text-zinc-200 block">Tự động bật Micro khi phát nhạc</span>
+                    <span className="text-[11px] text-zinc-400 block">
+                      Tự động ghi âm khi bấm Play nếu đã được cấp quyền micro
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateSettings({ autoMicOnPlay: !settings.autoMicOnPlay })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      settings.autoMicOnPlay ? 'bg-emerald-600' : 'bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        settings.autoMicOnPlay ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* 4. Show Debug HUD Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-semibold text-zinc-200 block">Chế độ nhà phát triển (Dev Telemetry)</span>
+                    <span className="text-[11px] text-zinc-400 block">
+                      Bảng thông số kỹ thuật âm thanh &amp; độ trễ trực tiếp (hoặc dùng ?debug=1)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateSettings({ showDebugHud: !settings.showDebugHud })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      settings.showDebugHud ? 'bg-indigo-600' : 'bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        settings.showDebugHud ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Compact Headphone tip notice inside Settings */}
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-950/60 border border-indigo-800/80 text-indigo-200 text-xs">
+                  <span className="text-base shrink-0">🎧</span>
+                  <div className="space-y-0.5 leading-relaxed">
+                    <span className="font-bold text-white block">Gợi ý tai nghe:</span>
+                    <span>Hãy đeo tai nghe khi hát để tránh âm thanh từ loa vọng ngược vào micro, giúp hệ thống chấm điểm chuẩn xác nhất.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Mở nhạc nhanh từ YouTube */}
+              <div className="space-y-4 md:border-l md:border-zinc-800 md:pl-6">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Mở nhạc nhanh từ YouTube
+                </h4>
+
+                {/* Card 1: Bookmarklet Quick Link */}
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                    <span>⚡</span>
+                    <span>Cách 1: Nút Dấu Trang Siêu Tốc (Không cần cài đặt)</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    Kéo nút bên dưới thả vào thanh <strong>Dấu trang (Bookmarks Bar)</strong> của trình duyệt (nhấn <code className="px-1 py-0.5 rounded bg-zinc-800 text-zinc-200 font-mono">Ctrl + Shift + B</code> để hiện thanh dấu trang). Khi đang xem bài karaoke trên YouTube, chỉ cần nhấp dấu trang này để chuyển sang KaraScore ngay lập tức.
+                  </p>
+
+                  <div className="pt-1 flex flex-col items-start gap-2">
+                    <a
+                      ref={(el) => {
+                        if (el) {
+                          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                          const bookmarkletHref = `javascript:(function(){var h=window.location.hostname;if(!h.includes('youtube.com')&&!h.includes('youtu.be')){alert('Hãy mở một video karaoke trên YouTube trước rồi bấm dấu trang này nhé!');return;}var id='';var u=new URL(window.location.href);if(h.includes('youtu.be')){id=u.pathname.slice(1).split('?')[0];}else if(u.pathname.includes('/shorts/')){id=u.pathname.split('/shorts/')[1].split('?')[0];}else{id=u.searchParams.get('v')||'';}if(!id){alert('Không tìm thấy ID video YouTube. Hãy mở video bạn muốn hát nhé!');return;}var t=document.title.replace(/ - YouTube$/,'').trim();window.location.href='${origin}/?v='+encodeURIComponent(id)+'&title='+encodeURIComponent(t);})();`;
+                          el.setAttribute('href', bookmarkletHref);
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowBookmarkletHint(true);
+                        setTimeout(() => setShowBookmarkletHint(false), 3000);
+                      }}
+                      title="Kéo nút này vào thanh Dấu trang (Bookmarks Bar) của trình duyệt"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black text-xs shadow-md transition-all cursor-grab active:cursor-grabbing select-none"
                     >
-                      <div className="text-xs font-bold flex items-center justify-between">
-                        <span>{item.title}</span>
-                        {isSelected && <span className="text-purple-400 text-xs">✓</span>}
+                      <span>🎤</span>
+                      <span>Hát trên KaraScore</span>
+                    </a>
+
+                    {showBookmarkletHint && (
+                      <div className="w-full p-2.5 rounded-lg bg-amber-950/70 border border-amber-600 text-amber-200 text-xs animate-in fade-in duration-150">
+                        💡 Hãy kéo thả nút này lên thanh <strong>Dấu trang (Ctrl + Shift + B)</strong> trên trình duyệt để sử dụng khi xem YouTube nhé!
                       </div>
-                      <div className="text-[11px] text-zinc-400">{item.desc}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card 2: Chrome Extension Download & Instructions */}
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
+                    <span>🧩</span>
+                    <span>Cách 2: Chrome Extension (Nút ngay dưới video YouTube)</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    Tiện ích mở rộng giúp thêm nút &quot;Hát trên KaraScore&quot; hiển thị cố định ngay dưới khung phát video của YouTube.
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                    <a
+                      href="/downloads/karascore-extension-v1.0.0.zip"
+                      download="karascore-extension-v1.0.0.zip"
+                      className="px-3.5 py-2 rounded-xl bg-purple-900/70 hover:bg-purple-800 border border-purple-500/50 text-purple-200 font-bold text-xs inline-flex items-center gap-1.5 transition-colors shadow-sm"
+                    >
+                      <span>📦</span>
+                      <span>Tải Extension v1.0.0 (.zip)</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText('chrome://extensions');
+                          setIsCopiedExtensions(true);
+                          setTimeout(() => setIsCopiedExtensions(false), 2000);
+                        } catch (err) {
+                          console.warn('Clipboard copy error:', err);
+                        }
+                      }}
+                      className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs border border-zinc-700 transition-colors cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <span>{isCopiedExtensions ? '✓ Đã copy!' : '📋 Copy chrome://extensions'}</span>
                     </button>
-                  );
-                })}
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 text-[11px] text-zinc-400 leading-relaxed border-t border-zinc-800/80">
+                    <div className="font-semibold text-zinc-300 text-xs">Cài đặt trong 3 bước:</div>
+                    <ol className="list-decimal list-inside space-y-1 pl-1">
+                      <li>Giải nén file <code className="text-zinc-300">.zip</code> vừa tải về máy tính.</li>
+                      <li>Dán đường dẫn vừa copy vào tab mới trình duyệt và bật <strong className="text-zinc-200">Developer mode</strong> (góc trên bên phải).</li>
+                      <li>Chọn <strong className="text-zinc-200">Load unpacked</strong> rồi trỏ tới thư mục vừa giải nén.</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* 2. Fun Remarks Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-semibold text-zinc-200 block">Lời nhận xét hài hước</span>
-                <span className="text-[11px] text-zinc-400 block">
-                  Hiển thị lời bình dí dỏm vui nhộn theo từng thứ hạng S/A/B/C
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleUpdateSettings({ enableFunRemarks: !settings.enableFunRemarks })}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  settings.enableFunRemarks ? 'bg-emerald-600' : 'bg-zinc-700'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    settings.enableFunRemarks ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* 3. Auto-Mic on Play */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-semibold text-zinc-200 block">Tự động bật Micro khi phát nhạc</span>
-                <span className="text-[11px] text-zinc-400 block">
-                  Tự động ghi âm khi bấm Play nếu đã được cấp quyền micro
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleUpdateSettings({ autoMicOnPlay: !settings.autoMicOnPlay })}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  settings.autoMicOnPlay ? 'bg-emerald-600' : 'bg-zinc-700'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    settings.autoMicOnPlay ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Headphone tip notice inside Settings */}
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-950/60 border border-indigo-800/80 text-indigo-200 text-xs">
-              <span className="text-base shrink-0">🎧</span>
-              <div className="space-y-0.5 leading-relaxed">
-                <span className="font-bold text-white block">Gợi ý tai nghe:</span>
-                <span>Hãy đeo tai nghe khi hát để tránh âm thanh từ loa vọng ngược vào micro, giúp hệ thống chấm điểm chuẩn xác nhất.</span>
-              </div>
-            </div>
-
-            {/* 4. Show Debug HUD Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <div className="space-y-0.5 pr-2">
-                <span className="text-xs font-semibold text-zinc-200 block">Chế độ nhà phát triển (Dev Telemetry)</span>
-                <span className="text-[11px] text-zinc-400 block">
-                  Bảng thông số kỹ thuật âm thanh &amp; độ trễ trực tiếp (hoặc dùng ?debug=1)
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleUpdateSettings({ showDebugHud: !settings.showDebugHud })}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  settings.showDebugHud ? 'bg-indigo-600' : 'bg-zinc-700'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    settings.showDebugHud ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Close footer button & Version label */}
-            <div className="pt-2 space-y-2 text-center">
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen(false)}
-                className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-colors cursor-pointer"
-              >
-                Đóng cài đặt
-              </button>
+            {/* Footer with Version label and Close button */}
+            <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
               <div className="text-[10px] text-zinc-500 font-mono tracking-wider">
                 KaraScore v1.0.0
               </div>
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(false)}
+                className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Đóng cài đặt
+              </button>
             </div>
           </div>
         </div>
